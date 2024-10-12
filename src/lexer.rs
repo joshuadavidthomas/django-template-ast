@@ -39,12 +39,6 @@ enum TokenType {
     Eof,
 }
 
-impl Default for TokenType {
-    fn default() -> Self {
-        Self::Comma
-    }
-}
-
 #[derive(Debug, Clone)]
 struct Token {
     token_type: TokenType,
