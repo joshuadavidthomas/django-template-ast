@@ -99,7 +99,7 @@ impl Lexer {
         }
 
         self.tokens
-            .push(Token::new(TokenType::Eof, String::new(), None, self.line));
+            .push(Token::new(TokenType::EOF, String::new(), None, self.line));
         self.tokens.clone()
     }
 
