@@ -2,91 +2,41 @@ use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
 enum TokenType {
-    // Single-character
-    LeftParen,
-    RightParen,
-    LeftBrace,
-    RightBrace,
-    LeftBracket,
-    RightBracket,
-    LeftAngle,
-    RightAngle,
-    Comma,
-    Dot,
-    Minus,
-    Plus,
-    Colon,
-    Semicolon,
-    Slash,
-    Star,
-    Bang,
-    Equal,
-    Pipe,
-    Percent,
-    Hash,
-    SingleQuote,
-    DoubleQuote,
-
-    // Multi-character
-    DoubleLeftBrace,
-    DoubleRightBrace,
-    LeftBracePercent,
-    PercentRightBrace,
-    LeftBraceHash,
-    HashRightBrace,
-    BangEqual,
-    DoubleEqual,
-    LeftAngleEqual,
-    RightAngleEqual,
-
-    // Literals
+    LeftParen,         // (
+    RightParen,        // )
+    LeftBrace,         // {
+    RightBrace,        // }
+    LeftBracket,       // [
+    RightBracket,      // ]
+    LeftAngle,         // <
+    RightAngle,        // >
+    Comma,             // ,
+    Dot,               // .
+    Minus,             // -
+    Plus,              // +
+    Colon,             // :
+    Semicolon,         // ;
+    Slash,             // /
+    Star,              // *
+    Bang,              // !
+    Equal,             // =
+    Pipe,              // |
+    Percent,           // %
+    Hash,              // #
+    SingleQuote,       // '
+    DoubleQuote,       // "
+    DoubleLeftBrace,   // {{
+    DoubleRightBrace,  // }}
+    LeftBracePercent,  // {%
+    PercentRightBrace, // %}
+    LeftBraceHash,     // {#
+    HashRightBrace,    // #}
+    BangEqual,         // !=
+    DoubleEqual,       // ==
+    LeftAngleEqual,    // <=
+    RightAngleEqual,   // =>
     Text,
-
     Eof,
-}
-
-impl fmt::Display for TokenType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use TokenType::*;
-        let s = match self {
-            LeftParen => "(",
-            RightParen => ")",
-            LeftBrace => "{",
-            RightBrace => "}",
-            LeftBracket => "[",
-            RightBracket => "]",
-            LeftAngle => "<",
-            RightAngle => ">",
-            Comma => ",",
-            Dot => ".",
-            Minus => "-",
-            Plus => "+",
-            Colon => ":",
-            Semicolon => ";",
-            Slash => "/",
-            Star => "*",
-            Bang => "!",
-            Equal => "=",
-            Pipe => "|",
-            Percent => "%",
-            Hash => "#",
-            SingleQuote => "'",
-            DoubleQuote => "\"",
-            DoubleLeftBrace => "{{",
-            DoubleRightBrace => "}}",
-            LeftBracePercent => "{%",
-            PercentRightBrace => "%}",
-            LeftBraceHash => "{#",
-            HashRightBrace => "#}",
-            BangEqual => "!=",
-            DoubleEqual => "==",
-            LeftAngleEqual => "<=",
-            RightAngleEqual => ">=",
-            Text => "text",
-            Eof => "EOF",
-        };
-        write!(f, "{}", s)
-    }
 }
 
 #[derive(Debug, Clone)]
