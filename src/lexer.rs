@@ -159,11 +159,11 @@ impl Lexer {
     }
 
     fn handle_left_brace(&mut self) -> (TokenType, Option<String>) {
-        let token_type = if self.match_char('{') {
+        let token_type = if self.advance_if_matches('{') {
             TokenType::DoubleLeftBrace
-        } else if self.match_char('%') {
+        } else if self.advance_if_matches('%') {
             TokenType::LeftBracePercent
-        } else if self.match_char('#') {
+        } else if self.advance_if_matches('#') {
             TokenType::LeftBraceHash
         } else {
             TokenType::LeftBrace
@@ -172,7 +172,7 @@ impl Lexer {
     }
 
     fn handle_right_brace(&mut self) -> (TokenType, Option<String>) {
-        let token_type = if self.match_char('}') {
+        let token_type = if self.advance_if_matches('}') {
             TokenType::DoubleRightBrace
         } else {
             TokenType::RightBrace
@@ -181,7 +181,7 @@ impl Lexer {
     }
 
     fn handle_percent(&mut self) -> (TokenType, Option<String>) {
-        let token_type = if self.match_char('}') {
+        let token_type = if self.advance_if_matches('}') {
             TokenType::PercentRightBrace
         } else {
             TokenType::Percent
@@ -190,7 +190,7 @@ impl Lexer {
     }
 
     fn handle_hash(&mut self) -> (TokenType, Option<String>) {
-        let token_type = if self.match_char('}') {
+        let token_type = if self.advance_if_matches('}') {
             TokenType::HashRightBrace
         } else {
             TokenType::Hash
@@ -199,7 +199,7 @@ impl Lexer {
     }
 
     fn handle_bang(&mut self) -> (TokenType, Option<String>) {
-        let token_type = if self.match_char('=') {
+        let token_type = if self.advance_if_matches('=') {
             TokenType::BangEqual
         } else {
             TokenType::Bang
@@ -208,7 +208,7 @@ impl Lexer {
     }
 
     fn handle_equal(&mut self) -> (TokenType, Option<String>) {
-        let token_type = if self.match_char('=') {
+        let token_type = if self.advance_if_matches('=') {
             TokenType::DoubleEqual
         } else {
             TokenType::Equal
@@ -217,7 +217,7 @@ impl Lexer {
     }
 
     fn handle_left_angle(&mut self) -> (TokenType, Option<String>) {
-        let token_type = if self.match_char('=') {
+        let token_type = if self.advance_if_matches('=') {
             TokenType::LeftAngleEqual
         } else {
             TokenType::LeftAngle
@@ -226,7 +226,7 @@ impl Lexer {
     }
 
     fn handle_right_angle(&mut self) -> (TokenType, Option<String>) {
-        let token_type = if self.match_char('=') {
+        let token_type = if self.advance_if_matches('=') {
             TokenType::RightAngleEqual
         } else {
             TokenType::RightAngle
@@ -235,7 +235,7 @@ impl Lexer {
     }
 
     fn handle_slash(&mut self) -> (TokenType, Option<String>) {
-        if self.match_char('/') {
+        if self.advance_if_matches('/') {
             let start = self.current - 2;
             while self.peek() != '\n' && !self.is_at_end() {
                 self.advance();
@@ -302,16 +302,13 @@ impl Lexer {
         )
     }
 
-    fn match_char(&mut self, expected: char) -> bool {
-        if self.is_at_end() {
-            return false;
+    fn advance_if_matches(&mut self, expected: char) -> bool {
+        if self.is_at_end() || self.peek() != expected {
+            false
+        } else {
+            self.current += 1;
+            true
         }
-        if self.peek() != expected {
-            return false;
-        }
-
-        self.current += 1;
-        true
     }
 }
 
