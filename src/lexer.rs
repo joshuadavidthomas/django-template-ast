@@ -38,6 +38,7 @@ pub enum TokenType {
     DoubleEqual,       // ==
     LeftAngleEqual,    // <=
     RightAngleEqual,   // =>
+    Whitespace,        // special token to account for whitespace
     Text,
     Eof,
 }
@@ -46,33 +47,16 @@ pub enum TokenType {
 pub struct Token {
     token_type: TokenType,
     lexeme: String,
-    literal: Option<String>,
     line: usize,
 }
 
 impl Token {
-    fn new(token_type: TokenType, lexeme: String, literal: Option<String>, line: usize) -> Self {
+    fn new(token_type: TokenType, lexeme: String, line: usize) -> Self {
         Token {
             token_type,
             lexeme,
-            literal,
             line,
         }
-    }
-}
-
-impl fmt::Display for Token {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}{}",
-            self.lexeme,
-            if let Some(literal) = &self.literal {
-                format!(" ({})", literal)
-            } else {
-                String::new()
-            }
-        )
     }
 }
 
@@ -83,18 +67,22 @@ pub trait Tokenizer: Scanner {
 
     fn tokenize(&mut self) -> Result<Vec<Self::Token>, Self::Error>;
     fn scan_token(&mut self) -> Result<(), Self::Error>;
-    fn add_token(&mut self, token_type: Self::TokenType, literal: Option<String>);
+    fn add_token(&mut self, token_type: Self::TokenType);
 }
 
 #[derive(Debug)]
 pub enum LexerError {
     EmptyToken(usize),
+    UnexpectedCharacter(char, usize),
 }
 
 impl fmt::Display for LexerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LexerError::EmptyToken(line) => write!(f, "Empty token at line {}", line),
+            LexerError::UnexpectedCharacter(c, line) => {
+                write!(f, "Unexpected character '{}' at line {}", c, line)
+            }
         }
     }
 }
@@ -123,21 +111,10 @@ impl Lexer {
     fn scan_token(&mut self) -> Result<(), LexerError> {
         let c = self.advance();
 
-        let (token_type, literal) = match c {
-            '(' => (TokenType::LeftParen, None),
-            ')' => (TokenType::RightParen, None),
-            '[' => (TokenType::LeftBracket, None),
-            ']' => (TokenType::RightBracket, None),
-            ',' => (TokenType::Comma, None),
-            '.' => (TokenType::Dot, None),
-            '-' => (TokenType::Minus, None),
-            '+' => (TokenType::Plus, None),
-            ':' => (TokenType::Colon, None),
-            ';' => (TokenType::Semicolon, None),
-            '*' => (TokenType::Star, None),
-            '|' => (TokenType::Pipe, None),
-            '\'' => (TokenType::SingleQuote, None),
-            '"' => (TokenType::DoubleQuote, None),
+        let token_type = match c {
+            '(' | ')' | '[' | ']' | ',' | '.' | '-' | '+' | ':' | ';' | '*' | '|' | '\'' | '"' => {
+                self.handle_single_char(c)
+            }
             '{' => self.handle_left_brace(),
             '}' => self.handle_right_brace(),
             '%' => self.handle_percent(),
@@ -147,18 +124,37 @@ impl Lexer {
             '<' => self.handle_left_angle(),
             '>' => self.handle_right_angle(),
             '/' => self.handle_slash(),
-            ' ' | '\r' | '\t' | '\n' => self.handle_whitespace(c),
-            _ => self.handle_text()?,
+            ' ' | '\r' | '\t' | '\n' => self.handle_whitespace(),
+            _ => self.handle_text(),
         };
 
-        if token_type != TokenType::Text || literal.is_some() {
-            self.add_token(token_type, literal);
-        }
+        self.add_token(token_type?);
 
         Ok(())
     }
 
-    fn handle_left_brace(&mut self) -> (TokenType, Option<String>) {
+    fn handle_single_char(&mut self, c: char) -> Result<TokenType, LexerError> {
+        let token_type = match c {
+            '(' => TokenType::LeftParen,
+            ')' => TokenType::RightParen,
+            '[' => TokenType::LeftBracket,
+            ']' => TokenType::RightBracket,
+            ',' => TokenType::Comma,
+            '.' => TokenType::Dot,
+            '-' => TokenType::Minus,
+            '+' => TokenType::Plus,
+            ':' => TokenType::Colon,
+            ';' => TokenType::Semicolon,
+            '*' => TokenType::Star,
+            '|' => TokenType::Pipe,
+            '\'' => TokenType::SingleQuote,
+            '"' => TokenType::DoubleQuote,
+            _ => return Err(LexerError::UnexpectedCharacter(c, self.line)),
+        };
+        Ok(token_type)
+    }
+
+    fn handle_left_brace(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('{') {
             TokenType::DoubleLeftBrace
         } else if self.advance_if_matches('%') {
@@ -168,138 +164,102 @@ impl Lexer {
         } else {
             TokenType::LeftBrace
         };
-        (token_type, None)
+        Ok(token_type)
     }
 
-    fn handle_right_brace(&mut self) -> (TokenType, Option<String>) {
+    fn handle_right_brace(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('}') {
             TokenType::DoubleRightBrace
         } else {
             TokenType::RightBrace
         };
-        (token_type, None)
+        Ok(token_type)
     }
 
-    fn handle_percent(&mut self) -> (TokenType, Option<String>) {
+    fn handle_percent(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('}') {
             TokenType::PercentRightBrace
         } else {
             TokenType::Percent
         };
-        (token_type, None)
+        Ok(token_type)
     }
 
-    fn handle_hash(&mut self) -> (TokenType, Option<String>) {
+    fn handle_hash(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('}') {
             TokenType::HashRightBrace
         } else {
             TokenType::Hash
         };
-        (token_type, None)
+        Ok(token_type)
     }
 
-    fn handle_bang(&mut self) -> (TokenType, Option<String>) {
+    fn handle_bang(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('=') {
             TokenType::BangEqual
         } else {
             TokenType::Bang
         };
-        (token_type, None)
+        Ok(token_type)
     }
 
-    fn handle_equal(&mut self) -> (TokenType, Option<String>) {
+    fn handle_equal(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('=') {
             TokenType::DoubleEqual
         } else {
             TokenType::Equal
         };
-        (token_type, None)
+        Ok(token_type)
     }
 
-    fn handle_left_angle(&mut self) -> (TokenType, Option<String>) {
+    fn handle_left_angle(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('=') {
             TokenType::LeftAngleEqual
         } else {
             TokenType::LeftAngle
         };
-        (token_type, None)
+        Ok(token_type)
     }
 
-    fn handle_right_angle(&mut self) -> (TokenType, Option<String>) {
+    fn handle_right_angle(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('=') {
             TokenType::RightAngleEqual
         } else {
             TokenType::RightAngle
         };
-        (token_type, None)
+        Ok(token_type)
     }
 
-    fn handle_slash(&mut self) -> (TokenType, Option<String>) {
-        if self.advance_if_matches('/') {
-            let start = self.current - 2;
+    fn handle_slash(&mut self) -> Result<TokenType, LexerError> {
+        let token_type = if self.advance_if_matches('/') {
             while self.peek() != '\n' && !self.is_at_end() {
                 self.advance();
             }
-            let comment = self.source[start..self.current].to_string();
-            (TokenType::Text, Some(comment))
+            TokenType::Text
         } else {
-            (TokenType::Slash, None)
-        }
+            TokenType::Slash
+        };
+        Ok(token_type)
     }
 
-    fn handle_whitespace(&mut self, c: char) -> (TokenType, Option<String>) {
-        if c == '\n' {
-            self.line += 1;
-        }
-        (TokenType::Text, None)
-    }
-
-    fn handle_text(&mut self) -> Result<(TokenType, Option<String>), LexerError> {
-        while !self.is_at_end() && !self.is_delimiter(self.peek()) {
+    fn handle_whitespace(&mut self) -> Result<TokenType, LexerError> {
+        while !self.is_at_end() && self.peek().is_whitespace() {
             if self.peek() == '\n' {
                 self.line += 1;
             }
             self.advance();
         }
-
-        let text = self.source[self.start..self.current].to_string();
-        if text.is_empty() {
-            Err(LexerError::EmptyToken(self.line))
-        } else {
-            Ok((TokenType::Text, Some(text)))
-        }
+        Ok(TokenType::Whitespace)
     }
 
-    fn is_delimiter(&self, c: char) -> bool {
-        matches!(
-            c,
-            '(' | ')'
-                | '['
-                | ']'
-                | '{'
-                | '}'
-                | ','
-                | '.'
-                | '-'
-                | '+'
-                | ':'
-                | ';'
-                | '*'
-                | '|'
-                | '%'
-                | '#'
-                | '!'
-                | '='
-                | '<'
-                | '>'
-                | '/'
-                | ' '
-                | '\r'
-                | '\t'
-                | '\n'
-                | '"'
-                | '\''
-        )
+    fn handle_text(&mut self) -> Result<TokenType, LexerError> {
+        self.advance_while(|c| !Self::is_token_boundary(c));
+
+        if self.start == self.current {
+            Err(LexerError::EmptyToken(self.line))
+        } else {
+            Ok(TokenType::Text)
+        }
     }
 
     fn advance_if_matches(&mut self, expected: char) -> bool {
@@ -309,6 +269,27 @@ impl Lexer {
             self.current += 1;
             true
         }
+    }
+
+    fn advance_while<F>(&mut self, condition: F)
+    where
+        F: Fn(char) -> bool,
+    {
+        while !self.is_at_end() && condition(self.peek()) {
+            if self.peek() == '\n' {
+                self.line += 1;
+            }
+            self.advance();
+        }
+    }
+
+    fn is_token_boundary(c: char) -> bool {
+        const TOKEN_BOUNDARIES: &[char] = &[
+            '(', ')', '[', ']', '{', '}', ',', '.', '-', '+', ':', ';', '*', '|', '%', '#', '!',
+            '=', '<', '>', '/', ' ', '\r', '\t', '\n', '"', '\'',
+        ];
+
+        TOKEN_BOUNDARIES.contains(&c)
     }
 }
 
@@ -324,7 +305,7 @@ impl Tokenizer for Lexer {
         }
 
         self.tokens
-            .push(Token::new(TokenType::Eof, String::new(), None, self.line));
+            .push(Token::new(TokenType::Eof, String::new(), self.line));
         Ok(self.tokens.clone())
     }
 
@@ -332,10 +313,11 @@ impl Tokenizer for Lexer {
         self.scan_token()
     }
 
-    fn add_token(&mut self, token_type: Self::TokenType, literal: Option<String>) {
+    fn add_token(&mut self, token_type: Self::TokenType) {
         let text = self.source[self.start..self.current].to_string();
-        self.tokens
-            .push(Token::new(token_type, text, literal, self.line));
+        if token_type != TokenType::Whitespace {
+            self.tokens.push(Token::new(token_type, text, self.line));
+        }
     }
 }
 
@@ -368,7 +350,14 @@ mod tests {
     fn tokenize(input: &str) -> Vec<Token> {
         let mut lexer = Lexer::new(input.to_string());
         match lexer.tokenize() {
-            Ok(tokens) => tokens,
+            Ok(tokens) => {
+                // Debug print all tokens
+                for (i, token) in tokens.iter().enumerate() {
+                    println!("{:?}", token)
+                }
+
+                tokens
+            }
             Err(e) => {
                 eprintln!("Tokenization error: {:?}", e);
                 eprintln!("Input that caused the error: {}", input);
