@@ -1,7 +1,10 @@
 use std::fmt;
+use std::fmt::Debug;
+
+use crate::scanner::Scanner;
 
 #[derive(Debug, Clone, PartialEq)]
-enum TokenType {
+pub enum TokenType {
     LeftParen,         // (
     RightParen,        // )
     LeftBrace,         // {
@@ -40,7 +43,7 @@ enum TokenType {
 }
 
 #[derive(Debug, Clone)]
-struct Token {
+pub struct Token {
     token_type: TokenType,
     lexeme: String,
     literal: Option<String>,
@@ -73,9 +76,30 @@ impl fmt::Display for Token {
     }
 }
 
-trait Tokenizer<T> {
-    fn tokenize(&mut self) -> Vec<T>;
+pub trait Tokenizer: Scanner {
+    type Token: Debug;
+    type TokenType: Debug;
+    type Error: std::error::Error;
+
+    fn tokenize(&mut self) -> Result<Vec<Self::Token>, Self::Error>;
+    fn scan_token(&mut self) -> Result<(), Self::Error>;
+    fn add_token(&mut self, token_type: Self::TokenType, literal: Option<String>);
 }
+
+#[derive(Debug)]
+pub enum LexerError {
+    EmptyToken(usize),
+}
+
+impl fmt::Display for LexerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LexerError::EmptyToken(line) => write!(f, "Empty token at line {}", line),
+        }
+    }
+}
+
+impl std::error::Error for LexerError {}
 
 pub struct Lexer {
     source: String,
@@ -96,107 +120,141 @@ impl Lexer {
         }
     }
 
-    fn scan_token(&mut self) {
+    fn scan_token(&mut self) -> Result<(), LexerError> {
         let c = self.advance();
-        match c {
-            '(' => self.add_token(TokenType::LeftParen),
-            ')' => self.add_token(TokenType::RightParen),
-            '[' => self.add_token(TokenType::LeftBracket),
-            ']' => self.add_token(TokenType::RightBracket),
-            ',' => self.add_token(TokenType::Comma),
-            '.' => self.add_token(TokenType::Dot),
-            '-' => self.add_token(TokenType::Minus),
-            '+' => self.add_token(TokenType::Plus),
-            ':' => self.add_token(TokenType::Colon),
-            ';' => self.add_token(TokenType::Semicolon),
-            '*' => self.add_token(TokenType::Star),
-            '|' => self.add_token(TokenType::Pipe),
-            '\'' => self.add_token(TokenType::SingleQuote),
-            '"' => self.add_token(TokenType::DoubleQuote),
-            '{' => {
-                let token_type = if self.match_char('{') {
-                    TokenType::DoubleLeftBrace
-                } else if self.match_char('%') {
-                    TokenType::LeftBracePercent
-                } else if self.match_char('#') {
-                    TokenType::LeftBraceHash
-                } else {
-                    TokenType::LeftBrace
-                };
-                self.add_token(token_type);
+
+        let (token_type, literal) = match c {
+            '(' => (TokenType::LeftParen, None),
+            ')' => (TokenType::RightParen, None),
+            '[' => (TokenType::LeftBracket, None),
+            ']' => (TokenType::RightBracket, None),
+            ',' => (TokenType::Comma, None),
+            '.' => (TokenType::Dot, None),
+            '-' => (TokenType::Minus, None),
+            '+' => (TokenType::Plus, None),
+            ':' => (TokenType::Colon, None),
+            ';' => (TokenType::Semicolon, None),
+            '*' => (TokenType::Star, None),
+            '|' => (TokenType::Pipe, None),
+            '\'' => (TokenType::SingleQuote, None),
+            '"' => (TokenType::DoubleQuote, None),
+            '{' => self.handle_left_brace(),
+            '}' => self.handle_right_brace(),
+            '%' => self.handle_percent(),
+            '#' => self.handle_hash(),
+            '!' => self.handle_bang(),
+            '=' => self.handle_equal(),
+            '<' => self.handle_left_angle(),
+            '>' => self.handle_right_angle(),
+            '/' => self.handle_slash(),
+            ' ' | '\r' | '\t' | '\n' => self.handle_whitespace(c),
+            _ => self.handle_text()?,
+        };
+
+        if token_type != TokenType::Text || literal.is_some() {
+            self.add_token(token_type, literal);
+        }
+
+        Ok(())
+    }
+
+    fn handle_left_brace(&mut self) -> (TokenType, Option<String>) {
+        let token_type = if self.match_char('{') {
+            TokenType::DoubleLeftBrace
+        } else if self.match_char('%') {
+            TokenType::LeftBracePercent
+        } else if self.match_char('#') {
+            TokenType::LeftBraceHash
+        } else {
+            TokenType::LeftBrace
+        };
+        (token_type, None)
+    }
+
+    fn handle_right_brace(&mut self) -> (TokenType, Option<String>) {
+        let token_type = if self.match_char('}') {
+            TokenType::DoubleRightBrace
+        } else {
+            TokenType::RightBrace
+        };
+        (token_type, None)
+    }
+
+    fn handle_percent(&mut self) -> (TokenType, Option<String>) {
+        let token_type = if self.match_char('}') {
+            TokenType::PercentRightBrace
+        } else {
+            TokenType::Percent
+        };
+        (token_type, None)
+    }
+
+    fn handle_hash(&mut self) -> (TokenType, Option<String>) {
+        let token_type = if self.match_char('}') {
+            TokenType::HashRightBrace
+        } else {
+            TokenType::Hash
+        };
+        (token_type, None)
+    }
+
+    fn handle_bang(&mut self) -> (TokenType, Option<String>) {
+        let token_type = if self.match_char('=') {
+            TokenType::BangEqual
+        } else {
+            TokenType::Bang
+        };
+        (token_type, None)
+    }
+
+    fn handle_equal(&mut self) -> (TokenType, Option<String>) {
+        let token_type = if self.match_char('=') {
+            TokenType::DoubleEqual
+        } else {
+            TokenType::Equal
+        };
+        (token_type, None)
+    }
+
+    fn handle_left_angle(&mut self) -> (TokenType, Option<String>) {
+        let token_type = if self.match_char('=') {
+            TokenType::LeftAngleEqual
+        } else {
+            TokenType::LeftAngle
+        };
+        (token_type, None)
+    }
+
+    fn handle_right_angle(&mut self) -> (TokenType, Option<String>) {
+        let token_type = if self.match_char('=') {
+            TokenType::RightAngleEqual
+        } else {
+            TokenType::RightAngle
+        };
+        (token_type, None)
+    }
+
+    fn handle_slash(&mut self) -> (TokenType, Option<String>) {
+        if self.match_char('/') {
+            let start = self.current - 2;
+            while self.peek() != '\n' && !self.is_at_end() {
+                self.advance();
             }
-            '}' => {
-                let token_type = if self.match_char('}') {
-                    TokenType::DoubleRightBrace
-                } else {
-                    TokenType::RightBrace
-                };
-                self.add_token(token_type);
-            }
-            '%' => {
-                let token_type = if self.match_char('}') {
-                    TokenType::PercentRightBrace
-                } else {
-                    TokenType::Percent
-                };
-                self.add_token(token_type);
-            }
-            '#' => {
-                let token_type = if self.match_char('}') {
-                    TokenType::HashRightBrace
-                } else {
-                    TokenType::Hash
-                };
-                self.add_token(token_type);
-            }
-            '!' => {
-                let token_type = if self.match_char('=') {
-                    TokenType::BangEqual
-                } else {
-                    TokenType::Bang
-                };
-                self.add_token(token_type);
-            }
-            '=' => {
-                let token_type = if self.match_char('=') {
-                    TokenType::DoubleEqual
-                } else {
-                    TokenType::Equal
-                };
-                self.add_token(token_type);
-            }
-            '<' => {
-                let token_type = if self.match_char('=') {
-                    TokenType::LeftAngleEqual
-                } else {
-                    TokenType::LeftAngle
-                };
-                self.add_token(token_type);
-            }
-            '>' => {
-                let token_type = if self.match_char('=') {
-                    TokenType::RightAngleEqual
-                } else {
-                    TokenType::RightAngle
-                };
-                self.add_token(token_type);
-            }
-            '/' => {
-                if self.match_char('/') {
-                    while self.peek() != '\n' && !self.is_at_end() {
-                        self.advance();
-                    }
-                } else {
-                    self.add_token(TokenType::Slash);
-                }
-            }
-            ' ' | '\r' | '\t' => {}
-            '\n' => self.line += 1,
-            _ => self.text(),
+            let comment = self.source[start..self.current].to_string();
+            (TokenType::Text, Some(comment))
+        } else {
+            (TokenType::Slash, None)
         }
     }
 
-    fn text(&mut self) {
+    fn handle_whitespace(&mut self, c: char) -> (TokenType, Option<String>) {
+        if c == '\n' {
+            self.line += 1;
+        }
+        (TokenType::Text, None)
+    }
+
+    fn handle_text(&mut self) -> Result<(TokenType, Option<String>), LexerError> {
         while !self.is_at_end() && !self.is_delimiter(self.peek()) {
             if self.peek() == '\n' {
                 self.line += 1;
@@ -205,8 +263,10 @@ impl Lexer {
         }
 
         let text = self.source[self.start..self.current].to_string();
-        if !text.is_empty() {
-            self.add_token_literal(TokenType::Text, Some(text));
+        if text.is_empty() {
+            Err(LexerError::EmptyToken(self.line))
+        } else {
+            Ok((TokenType::Text, Some(text)))
         }
     }
 
@@ -246,59 +306,61 @@ impl Lexer {
         if self.is_at_end() {
             return false;
         }
-        if self.source.chars().nth(self.current) != Some(expected) {
+        if self.peek() != expected {
             return false;
         }
 
         self.current += 1;
         true
     }
+}
 
-    fn peek(&self) -> char {
-        self.peek_ahead(0)
+impl Tokenizer for Lexer {
+    type Token = Token;
+    type TokenType = TokenType;
+    type Error = LexerError;
+
+    fn tokenize(&mut self) -> Result<Vec<Self::Token>, Self::Error> {
+        while !self.is_at_end() {
+            self.start = self.current;
+            self.scan_token()?;
+        }
+
+        self.tokens
+            .push(Token::new(TokenType::Eof, String::new(), None, self.line));
+        Ok(self.tokens.clone())
     }
 
-    fn peek_next(&self) -> char {
-        self.peek_ahead(1)
-    }
-    fn peek_ahead(&self, offset: usize) -> char {
-        self.source
-            .chars()
-            .nth(self.current + offset)
-            .unwrap_or('\0')
+    fn scan_token(&mut self) -> Result<(), LexerError> {
+        self.scan_token()
     }
 
-    fn is_at_end(&self) -> bool {
-        self.current >= self.source.len()
-    }
-
-    fn advance(&mut self) -> char {
-        let current_char = self.source.chars().nth(self.current).unwrap_or('\0');
-        self.current += 1;
-        current_char
-    }
-
-    fn add_token(&mut self, token_type: TokenType) {
-        self.add_token_literal(token_type, None);
-    }
-
-    fn add_token_literal(&mut self, token_type: TokenType, literal: Option<String>) {
+    fn add_token(&mut self, token_type: Self::TokenType, literal: Option<String>) {
         let text = self.source[self.start..self.current].to_string();
         self.tokens
             .push(Token::new(token_type, text, literal, self.line));
     }
 }
 
-impl Tokenizer<Token> for Lexer {
-    fn tokenize(&mut self) -> Vec<Token> {
-        while !self.is_at_end() {
-            self.start = self.current;
-            self.scan_token();
-        }
+impl Scanner for Lexer {
+    type Item = char;
 
-        self.tokens
-            .push(Token::new(TokenType::Eof, String::new(), None, self.line));
-        self.tokens.clone()
+    fn advance(&mut self) -> Self::Item {
+        let current_char = self.peek();
+        self.current += 1;
+        current_char
+    }
+
+    fn peek(&self) -> Self::Item {
+        self.source.chars().nth(self.current).unwrap_or('\0')
+    }
+
+    fn peek_next(&self) -> Self::Item {
+        self.source.chars().nth(self.current + 1).unwrap_or('\0')
+    }
+
+    fn is_at_end(&self) -> bool {
+        self.current >= self.source.len()
     }
 }
 
@@ -308,7 +370,14 @@ mod tests {
 
     fn tokenize(input: &str) -> Vec<Token> {
         let mut lexer = Lexer::new(input.to_string());
-        lexer.tokenize()
+        match lexer.tokenize() {
+            Ok(tokens) => tokens,
+            Err(e) => {
+                eprintln!("Tokenization error: {:?}", e);
+                eprintln!("Input that caused the error: {}", input);
+                panic!("Tokenization failed. See error output above.");
+            }
+        }
     }
 
     #[test]
