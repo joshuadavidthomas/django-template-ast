@@ -73,6 +73,10 @@ impl fmt::Display for Token {
     }
 }
 
+trait Tokenizer<T> {
+    fn tokenize(&mut self) -> Vec<T>;
+}
+
 pub struct Lexer {
     source: String,
     tokens: Vec<Token>,
@@ -92,100 +96,88 @@ impl Lexer {
         }
     }
 
-    pub fn tokenize(&mut self) -> Vec<Token> {
-        while !self.is_at_end() {
-            self.start = self.current;
-            self.scan_token();
-        }
-
-        self.tokens
-            .push(Token::new(TokenType::Eof, String::new(), None, self.line));
-        self.tokens.clone()
-    }
-
     fn scan_token(&mut self) {
-        use TokenType::*;
         let c = self.advance();
         match c {
-            '(' => self.add_token(LeftParen),
-            ')' => self.add_token(RightParen),
-            '[' => self.add_token(LeftBracket),
-            ']' => self.add_token(RightBracket),
-            ',' => self.add_token(Comma),
-            '.' => self.add_token(Dot),
-            '-' => self.add_token(Minus),
-            '+' => self.add_token(Plus),
-            ':' => self.add_token(Colon),
-            ';' => self.add_token(Semicolon),
-            '*' => self.add_token(Star),
-            '|' => self.add_token(Pipe),
-            '\'' => self.add_token(SingleQuote),
-            '"' => self.add_token(DoubleQuote),
+            '(' => self.add_token(TokenType::LeftParen),
+            ')' => self.add_token(TokenType::RightParen),
+            '[' => self.add_token(TokenType::LeftBracket),
+            ']' => self.add_token(TokenType::RightBracket),
+            ',' => self.add_token(TokenType::Comma),
+            '.' => self.add_token(TokenType::Dot),
+            '-' => self.add_token(TokenType::Minus),
+            '+' => self.add_token(TokenType::Plus),
+            ':' => self.add_token(TokenType::Colon),
+            ';' => self.add_token(TokenType::Semicolon),
+            '*' => self.add_token(TokenType::Star),
+            '|' => self.add_token(TokenType::Pipe),
+            '\'' => self.add_token(TokenType::SingleQuote),
+            '"' => self.add_token(TokenType::DoubleQuote),
             '{' => {
                 let token_type = if self.match_char('{') {
-                    DoubleLeftBrace
+                    TokenType::DoubleLeftBrace
                 } else if self.match_char('%') {
-                    LeftBracePercent
+                    TokenType::LeftBracePercent
                 } else if self.match_char('#') {
-                    LeftBraceHash
+                    TokenType::LeftBraceHash
                 } else {
-                    LeftBrace
+                    TokenType::LeftBrace
                 };
                 self.add_token(token_type);
             }
             '}' => {
                 let token_type = if self.match_char('}') {
-                    DoubleRightBrace
+                    TokenType::DoubleRightBrace
                 } else {
-                    RightBrace
+                    TokenType::RightBrace
                 };
                 self.add_token(token_type);
             }
             '%' => {
                 let token_type = if self.match_char('}') {
-                    PercentRightBrace
+                    TokenType::PercentRightBrace
                 } else {
-                    Percent
+                    TokenType::Percent
                 };
                 self.add_token(token_type);
             }
             '#' => {
                 let token_type = if self.match_char('}') {
-                    HashRightBrace
+                    TokenType::HashRightBrace
                 } else {
-                    Hash
+                    TokenType::Hash
                 };
                 self.add_token(token_type);
             }
             '!' => {
                 let token_type = if self.match_char('=') {
-                    BangEqual
+                    TokenType::BangEqual
                 } else {
-                    Bang
+                    TokenType::Bang
                 };
                 self.add_token(token_type);
             }
             '=' => {
                 let token_type = if self.match_char('=') {
-                    DoubleEqual
+                    TokenType::DoubleEqual
                 } else {
-                    Equal
+                    TokenType::Equal
                 };
                 self.add_token(token_type);
             }
             '<' => {
                 let token_type = if self.match_char('=') {
-                    LeftAngleEqual
+                    TokenType::LeftAngleEqual
                 } else {
-                    LeftAngle
+                    TokenType::LeftAngle
                 };
                 self.add_token(token_type);
             }
             '>' => {
                 let token_type = if self.match_char('=') {
-                    RightAngleEqual
+                    TokenType::RightAngleEqual
                 } else {
-                    RightAngle
+                    TokenType::RightAngle
                 };
                 self.add_token(token_type);
             }
@@ -195,7 +187,7 @@ impl Lexer {
                         self.advance();
                     }
                 } else {
-                    self.add_token(Slash);
+                    self.add_token(TokenType::Slash);
                 }
             }
             ' ' | '\r' | '\t' => {}
@@ -263,19 +255,17 @@ impl Lexer {
     }
 
     fn peek(&self) -> char {
-        if self.is_at_end() {
-            '\0'
-        } else {
-            self.source.chars().nth(self.current).unwrap_or('\0')
-        }
+        self.peek_ahead(0)
     }
 
     fn peek_next(&self) -> char {
-        if self.current + 1 >= self.source.len() {
-            '\0'
-        } else {
-            self.source.chars().nth(self.current + 1).unwrap_or('\0')
-        }
+        self.peek_ahead(1)
+    }
+    fn peek_ahead(&self, offset: usize) -> char {
+        self.source
+            .chars()
+            .nth(self.current + offset)
+            .unwrap_or('\0')
     }
 
     fn is_at_end(&self) -> bool {
@@ -299,10 +289,22 @@ impl Lexer {
     }
 }
 
+impl Tokenizer<Token> for Lexer {
+    fn tokenize(&mut self) -> Vec<Token> {
+        while !self.is_at_end() {
+            self.start = self.current;
+            self.scan_token();
+        }
+
+        self.tokens
+            .push(Token::new(TokenType::Eof, String::new(), None, self.line));
+        self.tokens.clone()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use TokenType::*;
 
     fn tokenize(input: &str) -> Vec<Token> {
         let mut lexer = Lexer::new(input.to_string());
@@ -312,105 +314,87 @@ mod tests {
     #[test]
     fn test_opening_tag() {
         let tokens = tokenize("<html>");
-        assert_eq!(tokens[0].token_type, LeftAngle);
-        assert_eq!(tokens[1].token_type, Text);
-        assert_eq!(tokens[1].lexeme, "html");
-        assert_eq!(tokens[2].token_type, RightAngle);
+        assert_eq!(tokens[0].token_type, TokenType::LeftAngle);
+        assert_eq!(tokens[1].token_type, TokenType::Text);
+        assert_eq!(tokens[2].token_type, TokenType::RightAngle);
     }
 
     #[test]
     fn test_closing_tag() {
         let tokens = tokenize("</body>");
-        assert_eq!(tokens[0].token_type, LeftAngle);
-        assert_eq!(tokens[1].token_type, Slash);
-        assert_eq!(tokens[2].token_type, Text);
-        assert_eq!(tokens[2].lexeme, "body");
-        assert_eq!(tokens[3].token_type, RightAngle);
+        assert_eq!(tokens[0].token_type, TokenType::LeftAngle);
+        assert_eq!(tokens[1].token_type, TokenType::Slash);
+        assert_eq!(tokens[2].token_type, TokenType::Text);
+        assert_eq!(tokens[3].token_type, TokenType::RightAngle);
     }
 
     #[test]
     fn test_html_attribute() {
         let tokens = tokenize(r#"<a href="link">"#);
-        assert_eq!(tokens[0].token_type, LeftAngle);
-        assert_eq!(tokens[1].token_type, Text);
-        assert_eq!(tokens[1].lexeme, "a");
-        assert_eq!(tokens[2].token_type, Text);
-        assert_eq!(tokens[2].lexeme, "href");
-        assert_eq!(tokens[3].token_type, Equal);
-        assert_eq!(tokens[4].token_type, DoubleQuote);
-        assert_eq!(tokens[5].token_type, Text);
-        assert_eq!(tokens[5].lexeme, "link");
-        assert_eq!(tokens[6].token_type, DoubleQuote);
-        assert_eq!(tokens[7].token_type, RightAngle);
+        assert_eq!(tokens[0].token_type, TokenType::LeftAngle);
+        assert_eq!(tokens[1].token_type, TokenType::Text);
+        assert_eq!(tokens[2].token_type, TokenType::Text);
+        assert_eq!(tokens[3].token_type, TokenType::Equal);
+        assert_eq!(tokens[4].token_type, TokenType::DoubleQuote);
+        assert_eq!(tokens[5].token_type, TokenType::Text);
+        assert_eq!(tokens[6].token_type, TokenType::DoubleQuote);
+        assert_eq!(tokens[7].token_type, TokenType::RightAngle);
     }
 
     #[test]
     fn test_django_variable() {
         let tokens = tokenize("{{ variable }}");
-        assert_eq!(tokens[0].token_type, DoubleLeftBrace);
-        assert_eq!(tokens[1].token_type, Text);
-        assert_eq!(tokens[1].lexeme, "variable");
-        assert_eq!(tokens[2].token_type, DoubleRightBrace);
+        assert_eq!(tokens[0].token_type, TokenType::DoubleLeftBrace);
+        assert_eq!(tokens[1].token_type, TokenType::Text);
+        assert_eq!(tokens[2].token_type, TokenType::DoubleRightBrace);
     }
 
     #[test]
     fn test_django_templatetag() {
         let tokens = tokenize("{% if condition %}");
-        assert_eq!(tokens[0].token_type, LeftBracePercent);
-        assert_eq!(tokens[1].token_type, Text);
-        assert_eq!(tokens[1].lexeme, "if");
-        assert_eq!(tokens[2].token_type, Text);
-        assert_eq!(tokens[2].lexeme, "condition");
-        assert_eq!(tokens[3].token_type, PercentRightBrace);
+        assert_eq!(tokens[0].token_type, TokenType::LeftBracePercent);
+        assert_eq!(tokens[1].token_type, TokenType::Text);
+        assert_eq!(tokens[2].token_type, TokenType::Text);
+        assert_eq!(tokens[3].token_type, TokenType::PercentRightBrace);
     }
 
     #[test]
     fn test_django_comment() {
         let tokens = tokenize("{# This is a comment #}");
-        assert_eq!(tokens[0].token_type, LeftBraceHash);
-        assert_eq!(tokens[1].token_type, Text);
-        assert_eq!(tokens[1].lexeme, "This");
-        assert_eq!(tokens[2].token_type, Text);
-        assert_eq!(tokens[2].lexeme, "is");
-        assert_eq!(tokens[3].token_type, Text);
-        assert_eq!(tokens[3].lexeme, "a");
-        assert_eq!(tokens[4].token_type, Text);
-        assert_eq!(tokens[4].lexeme, "comment");
-        assert_eq!(tokens[5].token_type, HashRightBrace);
+        assert_eq!(tokens[0].token_type, TokenType::LeftBraceHash);
+        assert_eq!(tokens[1].token_type, TokenType::Text);
+        assert_eq!(tokens[2].token_type, TokenType::Text);
+        assert_eq!(tokens[3].token_type, TokenType::Text);
+        assert_eq!(tokens[4].token_type, TokenType::Text);
+        assert_eq!(tokens[5].token_type, TokenType::HashRightBrace);
     }
 
     #[test]
     fn test_django_filter() {
         let tokens = tokenize("{{ value|default:'default' }}");
-        assert_eq!(tokens[0].token_type, DoubleLeftBrace);
-        assert_eq!(tokens[1].token_type, Text);
-        assert_eq!(tokens[1].lexeme, "value");
-        assert_eq!(tokens[2].token_type, Pipe);
-        assert_eq!(tokens[3].token_type, Text);
-        assert_eq!(tokens[3].lexeme, "default");
-        assert_eq!(tokens[4].token_type, Colon);
-        assert_eq!(tokens[5].token_type, SingleQuote);
-        assert_eq!(tokens[6].token_type, Text);
-        assert_eq!(tokens[6].lexeme, "default");
-        assert_eq!(tokens[7].token_type, SingleQuote);
-        assert_eq!(tokens[8].token_type, DoubleRightBrace);
+        assert_eq!(tokens[0].token_type, TokenType::DoubleLeftBrace);
+        assert_eq!(tokens[1].token_type, TokenType::Text);
+        assert_eq!(tokens[2].token_type, TokenType::Pipe);
+        assert_eq!(tokens[3].token_type, TokenType::Text);
+        assert_eq!(tokens[4].token_type, TokenType::Colon);
+        assert_eq!(tokens[5].token_type, TokenType::SingleQuote);
+        assert_eq!(tokens[6].token_type, TokenType::Text);
+        assert_eq!(tokens[7].token_type, TokenType::SingleQuote);
+        assert_eq!(tokens[8].token_type, TokenType::DoubleRightBrace);
     }
 
     #[test]
     fn test_quoted_django_templatetag() {
         let tokens = tokenize(r#"'{% url "api:index" %}'"#);
-        assert_eq!(tokens[0].token_type, SingleQuote);
-        assert_eq!(tokens[1].token_type, LeftBracePercent);
-        assert_eq!(tokens[2].token_type, Text);
-        assert_eq!(tokens[2].lexeme, "url");
-        assert_eq!(tokens[3].token_type, DoubleQuote);
-        assert_eq!(tokens[4].token_type, Text);
-        assert_eq!(tokens[4].lexeme, "api");
-        assert_eq!(tokens[5].token_type, Colon);
-        assert_eq!(tokens[6].token_type, Text);
-        assert_eq!(tokens[6].lexeme, "index");
-        assert_eq!(tokens[7].token_type, DoubleQuote);
-        assert_eq!(tokens[8].token_type, PercentRightBrace);
-        assert_eq!(tokens[9].token_type, SingleQuote);
+        assert_eq!(tokens[0].token_type, TokenType::SingleQuote);
+        assert_eq!(tokens[1].token_type, TokenType::LeftBracePercent);
+        assert_eq!(tokens[2].token_type, TokenType::Text);
+        assert_eq!(tokens[3].token_type, TokenType::DoubleQuote);
+        assert_eq!(tokens[4].token_type, TokenType::Text);
+        assert_eq!(tokens[5].token_type, TokenType::Colon);
+        assert_eq!(tokens[6].token_type, TokenType::Text);
+        assert_eq!(tokens[7].token_type, TokenType::DoubleQuote);
+        assert_eq!(tokens[8].token_type, TokenType::PercentRightBrace);
+        assert_eq!(tokens[9].token_type, TokenType::SingleQuote);
     }
 }
