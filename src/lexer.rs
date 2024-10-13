@@ -1,7 +1,7 @@
 use std::fmt;
 use std::fmt::Debug;
 
-use crate::scanner::Scanner;
+use crate::scanner::{Scanner, ScannerState};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
@@ -92,9 +92,7 @@ impl std::error::Error for LexerError {}
 pub struct Lexer {
     source: String,
     tokens: Vec<Token>,
-    start: usize,
-    current: usize,
-    line: usize,
+    state: ScannerState,
 }
 
 impl Lexer {
@@ -102,9 +100,7 @@ impl Lexer {
         Lexer {
             source,
             tokens: Vec::new(),
-            start: 0,
-            current: 0,
-            line: 1,
+            state: ScannerState::new(),
         }
     }
 
@@ -149,7 +145,7 @@ impl Lexer {
             '|' => TokenType::Pipe,
             '\'' => TokenType::SingleQuote,
             '"' => TokenType::DoubleQuote,
-            _ => return Err(LexerError::UnexpectedCharacter(c, self.line)),
+            _ => return Err(LexerError::UnexpectedCharacter(c, self.state.line)),
         };
         Ok(token_type)
     }
@@ -245,7 +241,7 @@ impl Lexer {
     fn handle_whitespace(&mut self) -> Result<TokenType, LexerError> {
         while !self.is_at_end() && self.peek().is_whitespace() {
             if self.peek() == '\n' {
-                self.line += 1;
+                self.state.line += 1;
             }
             self.advance();
         }
@@ -255,8 +251,8 @@ impl Lexer {
     fn handle_text(&mut self) -> Result<TokenType, LexerError> {
         self.advance_while(|c| !Self::is_token_boundary(c));
 
-        if self.start == self.current {
-            Err(LexerError::EmptyToken(self.line))
+        if self.state.start == self.state.current {
+            Err(LexerError::EmptyToken(self.state.line))
         } else {
             Ok(TokenType::Text)
         }
@@ -266,7 +262,7 @@ impl Lexer {
         if self.is_at_end() || self.peek() != expected {
             false
         } else {
-            self.current += 1;
+            self.state.current += 1;
             true
         }
     }
@@ -277,7 +273,7 @@ impl Lexer {
     {
         while !self.is_at_end() && condition(self.peek()) {
             if self.peek() == '\n' {
-                self.line += 1;
+                self.state.line += 1;
             }
             self.advance();
         }
@@ -300,12 +296,12 @@ impl Tokenizer for Lexer {
 
     fn tokenize(&mut self) -> Result<Vec<Self::Token>, Self::Error> {
         while !self.is_at_end() {
-            self.start = self.current;
+            self.state.start = self.state.current;
             self.scan_token()?;
         }
 
         self.tokens
-            .push(Token::new(TokenType::Eof, String::new(), self.line));
+            .push(Token::new(TokenType::Eof, String::new(), self.state.line));
         Ok(self.tokens.clone())
     }
 
@@ -314,9 +310,10 @@ impl Tokenizer for Lexer {
     }
 
     fn add_token(&mut self, token_type: Self::TokenType) {
-        let text = self.source[self.start..self.current].to_string();
+        let text = self.source[self.state.start..self.state.current].to_string();
         if token_type != TokenType::Whitespace {
-            self.tokens.push(Token::new(token_type, text, self.line));
+            self.tokens
+                .push(Token::new(token_type, text, self.state.line));
         }
     }
 }
@@ -326,20 +323,23 @@ impl Scanner for Lexer {
 
     fn advance(&mut self) -> Self::Item {
         let current_char = self.peek();
-        self.current += 1;
+        self.state.current += 1;
         current_char
     }
 
     fn peek(&self) -> Self::Item {
-        self.source.chars().nth(self.current).unwrap_or('\0')
+        self.source.chars().nth(self.state.current).unwrap_or('\0')
     }
 
     fn peek_next(&self) -> Self::Item {
-        self.source.chars().nth(self.current + 1).unwrap_or('\0')
+        self.source
+            .chars()
+            .nth(self.state.current + 1)
+            .unwrap_or('\0')
     }
 
     fn is_at_end(&self) -> bool {
-        self.current >= self.source.len()
+        self.state.current >= self.source.len()
     }
 }
 

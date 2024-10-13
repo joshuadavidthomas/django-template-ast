@@ -1,5 +1,21 @@
 use std::fmt::Debug;
 
+pub struct ScannerState {
+    pub start: usize,
+    pub current: usize,
+    pub line: usize,
+}
+
+impl ScannerState {
+    pub fn new() -> Self {
+        ScannerState {
+            start: 0,
+            current: 0,
+            line: 1,
+        }
+    }
+}
+
 pub trait Scanner {
     type Item: Debug;
 
