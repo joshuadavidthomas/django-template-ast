@@ -58,7 +58,7 @@ impl<'a> Lexer<'a> {
             '|' => TokenType::Pipe,
             '\'' => TokenType::SingleQuote,
             '"' => TokenType::DoubleQuote,
-            _ => return Err(LexerError::UnexpectedCharacter(c, self.state.line)),
+            _ => return LexerError::unexpected_character(c, self.state.line),
         };
         Ok(token_type)
     }
