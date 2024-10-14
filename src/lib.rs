@@ -3,9 +3,13 @@ mod lexer;
 mod scanner;
 mod token;
 
+use lexer::Lexer;
 use std::error::Error;
+use token::Tokenizer;
 
-pub fn compile(_template: &str) -> Result<String, Box<dyn Error>> {
+pub fn compile(template: &str) -> Result<String, Box<dyn Error>> {
+    let tokens = Lexer::new(template).tokenize()?;
+    println!("{:?}", tokens);
     todo!("Implement compilation process")
 }
 
