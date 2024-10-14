@@ -2,14 +2,14 @@ use crate::error::LexerError;
 use crate::scanner::{Scanner, ScannerState};
 use crate::token::{Token, TokenType, Tokenizer};
 
-pub struct Lexer {
-    source: String,
+pub struct Lexer<'a> {
+    source: &'a str,
     tokens: Vec<Token>,
     state: ScannerState,
 }
 
-impl Lexer {
-    pub fn new(source: String) -> Self {
+impl<'a> Lexer<'a> {
+    pub fn new(source: &'a str) -> Self {
         Lexer {
             source,
             tokens: Vec::new(),
@@ -202,7 +202,7 @@ impl Lexer {
     }
 }
 
-impl Tokenizer for Lexer {
+impl<'a> Tokenizer for Lexer<'a> {
     type Token = Token;
     type TokenType = TokenType;
     type Error = LexerError;
@@ -231,7 +231,7 @@ impl Tokenizer for Lexer {
     }
 }
 
-impl Scanner for Lexer {
+impl<'a> Scanner for Lexer<'a> {
     type Item = char;
 
     fn advance(&mut self) -> Self::Item {
@@ -261,7 +261,7 @@ mod tests {
     use super::*;
 
     fn tokenize(input: &str) -> Vec<Token> {
-        let mut lexer = Lexer::new(input.to_string());
+        let mut lexer = Lexer::new(input);
         match lexer.tokenize() {
             Ok(tokens) => {
                 // Debug print all tokens
