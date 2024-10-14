@@ -61,7 +61,6 @@ impl<'a> Token<'a> {
 pub trait Tokenizer: Scanner {
     type Token: Debug;
     type TokenType: Debug;
-    type Error: std::error::Error;
 
     fn tokenize(&mut self) -> Result<Vec<Self::Token>, Self::Error>;
     fn scan_token(&mut self) -> Result<(), Self::Error>;

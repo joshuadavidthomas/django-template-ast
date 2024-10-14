@@ -18,10 +18,11 @@ impl LexerState {
 
 pub trait Scanner {
     type Item: Debug;
+    type Error: Debug + std::error::Error;
 
-    fn advance(&mut self) -> Self::Item;
-    fn peek(&self) -> Self::Item;
-    fn peek_next(&self) -> Self::Item;
-    fn previous(&self) -> Self::Item;
+    fn advance(&mut self) -> Result<Self::Item, Self::Error>;
+    fn peek(&self) -> Result<Self::Item, Self::Error>;
+    fn peek_next(&self) -> Result<Self::Item, Self::Error>;
+    fn previous(&self) -> Result<Self::Item, Self::Error>;
     fn is_at_end(&self) -> bool;
 }
