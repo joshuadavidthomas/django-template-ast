@@ -4,7 +4,7 @@ use crate::token::{Token, TokenType, Tokenizer};
 
 pub struct Lexer<'a> {
     source: &'a str,
-    tokens: Vec<Token>,
+    tokens: Vec<Token<'a>>,
     state: LexerState,
 }
 
@@ -17,7 +17,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn scan_token(&mut self) -> Result<(), LexerError> {
+    fn _scan_token(&mut self) -> Result<(), LexerError> {
         let c = self.advance();
 
         let token_type = match c {
@@ -211,7 +211,7 @@ impl<'a> Lexer<'a> {
 }
 
 impl<'a> Tokenizer for Lexer<'a> {
-    type Token = Token;
+    type Token = Token<'a>;
     type TokenType = TokenType;
     type Error = LexerError;
 
@@ -222,16 +222,16 @@ impl<'a> Tokenizer for Lexer<'a> {
         }
 
         self.tokens
-            .push(Token::new(TokenType::Eof, String::new(), self.state.line));
+            .push(Token::new(TokenType::Eof, "", self.state.line));
         Ok(self.tokens.clone())
     }
 
     fn scan_token(&mut self) -> Result<(), LexerError> {
-        self.scan_token()
+        self._scan_token()
     }
 
     fn add_token(&mut self, token_type: Self::TokenType) {
-        let text = self.source[self.state.start..self.state.current].to_string();
+        let text = &self.source[self.state.start..self.state.current];
         if token_type != TokenType::Whitespace {
             self.tokens
                 .push(Token::new(token_type, text, self.state.line));
