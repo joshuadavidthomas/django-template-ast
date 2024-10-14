@@ -17,32 +17,26 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn _scan_token(&mut self) -> Result<(), LexerError> {
-        let c = self.advance()?;
-
-        let token_type = match c {
+    fn match_token_type(&mut self, c: char) -> Result<TokenType, LexerError> {
+        match c {
             '(' | ')' | '[' | ']' | ',' | '.' | '-' | '+' | ':' | ';' | '*' | '|' | '\'' | '"' => {
-                self.handle_single_char(c)
+                self.single_char(c)
             }
-            '{' => self.handle_left_brace(),
-            '}' => self.handle_right_brace(),
-            '%' => self.handle_percent(),
-            '#' => self.handle_hash(),
-            '!' => self.handle_bang(),
-            '=' => self.handle_equal(),
-            '<' => self.handle_left_angle(),
-            '>' => self.handle_right_angle(),
-            '/' => self.handle_slash(),
-            ' ' | '\r' | '\t' | '\n' => self.handle_whitespace(c),
-            _ => self.handle_text(),
-        };
-
-        self.add_token(token_type?);
-
-        Ok(())
+            '{' => self.left_brace(),
+            '}' => self.right_brace(),
+            '%' => self.percent(),
+            '#' => self.hash(),
+            '!' => self.bang(),
+            '=' => self.equal(),
+            '<' => self.left_angle(),
+            '>' => self.right_angle(),
+            '/' => self.slash(),
+            ' ' | '\r' | '\t' | '\n' => self.whitespace(c),
+            _ => self.text(),
+        }
     }
 
-    fn handle_single_char(&mut self, c: char) -> Result<TokenType, LexerError> {
+    fn single_char(&mut self, c: char) -> Result<TokenType, LexerError> {
         let token_type = match c {
             '(' => TokenType::LeftParen,
             ')' => TokenType::RightParen,
@@ -63,7 +57,7 @@ impl<'a> Lexer<'a> {
         Ok(token_type)
     }
 
-    fn handle_left_brace(&mut self) -> Result<TokenType, LexerError> {
+    fn left_brace(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('{')? {
             TokenType::DoubleLeftBrace
         } else if self.advance_if_matches('%')? {
@@ -76,7 +70,7 @@ impl<'a> Lexer<'a> {
         Ok(token_type)
     }
 
-    fn handle_right_brace(&mut self) -> Result<TokenType, LexerError> {
+    fn right_brace(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('}')? {
             TokenType::DoubleRightBrace
         } else {
@@ -85,7 +79,7 @@ impl<'a> Lexer<'a> {
         Ok(token_type)
     }
 
-    fn handle_percent(&mut self) -> Result<TokenType, LexerError> {
+    fn percent(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('}')? {
             TokenType::PercentRightBrace
         } else {
@@ -94,7 +88,7 @@ impl<'a> Lexer<'a> {
         Ok(token_type)
     }
 
-    fn handle_hash(&mut self) -> Result<TokenType, LexerError> {
+    fn hash(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('}')? {
             TokenType::HashRightBrace
         } else {
@@ -103,7 +97,7 @@ impl<'a> Lexer<'a> {
         Ok(token_type)
     }
 
-    fn handle_bang(&mut self) -> Result<TokenType, LexerError> {
+    fn bang(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('=')? {
             TokenType::BangEqual
         } else {
@@ -112,7 +106,7 @@ impl<'a> Lexer<'a> {
         Ok(token_type)
     }
 
-    fn handle_equal(&mut self) -> Result<TokenType, LexerError> {
+    fn equal(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('=')? {
             TokenType::DoubleEqual
         } else {
@@ -121,7 +115,7 @@ impl<'a> Lexer<'a> {
         Ok(token_type)
     }
 
-    fn handle_left_angle(&mut self) -> Result<TokenType, LexerError> {
+    fn left_angle(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('=')? {
             TokenType::LeftAngleEqual
         } else {
@@ -130,7 +124,7 @@ impl<'a> Lexer<'a> {
         Ok(token_type)
     }
 
-    fn handle_right_angle(&mut self) -> Result<TokenType, LexerError> {
+    fn right_angle(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('=')? {
             TokenType::RightAngleEqual
         } else {
@@ -139,7 +133,7 @@ impl<'a> Lexer<'a> {
         Ok(token_type)
     }
 
-    fn handle_slash(&mut self) -> Result<TokenType, LexerError> {
+    fn slash(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('/')? {
             while self.peek()? != '\n' && !self.is_at_end() {
                 self.advance()?;
@@ -151,7 +145,7 @@ impl<'a> Lexer<'a> {
         Ok(token_type)
     }
 
-    fn handle_whitespace(&mut self, mut c: char) -> Result<TokenType, LexerError> {
+    fn whitespace(&mut self, mut c: char) -> Result<TokenType, LexerError> {
         while !self.is_at_end() && self.peek()?.is_whitespace() {
             match c {
                 '\n' => {
@@ -169,7 +163,7 @@ impl<'a> Lexer<'a> {
         Ok(TokenType::Whitespace)
     }
 
-    fn handle_text(&mut self) -> Result<TokenType, LexerError> {
+    fn text(&mut self) -> Result<TokenType, LexerError> {
         self.advance_while(|c| !Self::is_token_boundary(c))?;
 
         if self.state.start == self.state.current {
@@ -273,27 +267,29 @@ impl<'a> Scanner for Lexer<'a> {
     }
 }
 
-impl<'a> Tokenizer for Lexer<'a> {
+impl<'a> Tokenizer<'a> for Lexer<'a> {
     type Token = Token<'a>;
     type TokenType = TokenType;
 
     fn tokenize(&mut self) -> Result<Vec<Self::Token>, Self::Error> {
         while !self.is_at_end() {
             self.state.start = self.state.current;
-            self.scan_token()?;
+            let (token_type, text) = self.next_token()?;
+            self.add_token(token_type, text);
         }
 
-        self.tokens
-            .push(Token::new(TokenType::Eof, "", self.state.line));
+        self.add_token(TokenType::Eof, "");
         Ok(self.tokens.clone())
     }
 
-    fn scan_token(&mut self) -> Result<(), LexerError> {
-        self._scan_token()
+    fn next_token(&mut self) -> Result<(Self::TokenType, &'a str), Self::Error> {
+        let c = self.advance()?;
+        let token_type = self.match_token_type(c)?;
+        let text = &self.source[self.state.start..self.state.current];
+        Ok((token_type, text))
     }
 
-    fn add_token(&mut self, token_type: Self::TokenType) {
-        let text = &self.source[self.state.start..self.state.current];
+    fn add_token(&mut self, token_type: Self::TokenType, text: &'a str) {
         if token_type != TokenType::Whitespace {
             self.tokens
                 .push(Token::new(token_type, text, self.state.line));

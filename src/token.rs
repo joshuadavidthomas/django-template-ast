@@ -58,11 +58,11 @@ impl<'a> Token<'a> {
     }
 }
 
-pub trait Tokenizer: Scanner {
+pub trait Tokenizer<'a>: Scanner {
     type Token: Debug;
     type TokenType: Debug;
 
     fn tokenize(&mut self) -> Result<Vec<Self::Token>, Self::Error>;
-    fn scan_token(&mut self) -> Result<(), Self::Error>;
-    fn add_token(&mut self, token_type: Self::TokenType);
+    fn next_token(&mut self) -> Result<(Self::TokenType, &'a str), Self::Error>;
+    fn add_token(&mut self, token_type: Self::TokenType, text: &'a str);
 }
