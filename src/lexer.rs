@@ -18,7 +18,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn _scan_token(&mut self) -> Result<(), LexerError> {
-        let c = self.advance();
+        let c = self.advance()?;
 
         let token_type = match c {
             '(' | ')' | '[' | ']' | ',' | '.' | '-' | '+' | ':' | ';' | '*' | '|' | '\'' | '"' => {
@@ -64,11 +64,11 @@ impl<'a> Lexer<'a> {
     }
 
     fn handle_left_brace(&mut self) -> Result<TokenType, LexerError> {
-        let token_type = if self.advance_if_matches('{') {
+        let token_type = if self.advance_if_matches('{')? {
             TokenType::DoubleLeftBrace
-        } else if self.advance_if_matches('%') {
+        } else if self.advance_if_matches('%')? {
             TokenType::LeftBracePercent
-        } else if self.advance_if_matches('#') {
+        } else if self.advance_if_matches('#')? {
             TokenType::LeftBraceHash
         } else {
             TokenType::LeftBrace
@@ -77,7 +77,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn handle_right_brace(&mut self) -> Result<TokenType, LexerError> {
-        let token_type = if self.advance_if_matches('}') {
+        let token_type = if self.advance_if_matches('}')? {
             TokenType::DoubleRightBrace
         } else {
             TokenType::RightBrace
@@ -86,7 +86,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn handle_percent(&mut self) -> Result<TokenType, LexerError> {
-        let token_type = if self.advance_if_matches('}') {
+        let token_type = if self.advance_if_matches('}')? {
             TokenType::PercentRightBrace
         } else {
             TokenType::Percent
@@ -95,7 +95,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn handle_hash(&mut self) -> Result<TokenType, LexerError> {
-        let token_type = if self.advance_if_matches('}') {
+        let token_type = if self.advance_if_matches('}')? {
             TokenType::HashRightBrace
         } else {
             TokenType::Hash
@@ -104,7 +104,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn handle_bang(&mut self) -> Result<TokenType, LexerError> {
-        let token_type = if self.advance_if_matches('=') {
+        let token_type = if self.advance_if_matches('=')? {
             TokenType::BangEqual
         } else {
             TokenType::Bang
@@ -113,7 +113,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn handle_equal(&mut self) -> Result<TokenType, LexerError> {
-        let token_type = if self.advance_if_matches('=') {
+        let token_type = if self.advance_if_matches('=')? {
             TokenType::DoubleEqual
         } else {
             TokenType::Equal
@@ -122,7 +122,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn handle_left_angle(&mut self) -> Result<TokenType, LexerError> {
-        let token_type = if self.advance_if_matches('=') {
+        let token_type = if self.advance_if_matches('=')? {
             TokenType::LeftAngleEqual
         } else {
             TokenType::LeftAngle
@@ -131,7 +131,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn handle_right_angle(&mut self) -> Result<TokenType, LexerError> {
-        let token_type = if self.advance_if_matches('=') {
+        let token_type = if self.advance_if_matches('=')? {
             TokenType::RightAngleEqual
         } else {
             TokenType::RightAngle
@@ -140,8 +140,8 @@ impl<'a> Lexer<'a> {
     }
 
     fn handle_slash(&mut self) -> Result<TokenType, LexerError> {
-        let token_type = if self.advance_if_matches('/') {
-            while self.peek() != '\n' && !self.is_at_end() {
+        let token_type = if self.advance_if_matches('/')? {
+            while self.peek()? != '\n' && !self.is_at_end() {
                 self.advance();
             }
             TokenType::Text
@@ -152,19 +152,19 @@ impl<'a> Lexer<'a> {
     }
 
     fn handle_whitespace(&mut self, mut c: char) -> Result<TokenType, LexerError> {
-        while !self.is_at_end() && self.peek().is_whitespace() {
+        while !self.is_at_end() && self.peek()?.is_whitespace() {
             match c {
                 '\n' => {
                     self.state.line += 1;
                 }
-                '\r' if self.peek() == '\n' => {
+                '\r' if self.peek()? == '\n' => {
                     self.advance();
                     self.state.line += 1;
                 }
                 ' ' | '\t' | '\r' => {}
                 _ => return LexerError::unexpected_character(c, self.state.line),
             }
-            c = self.advance();
+            c = self.advance()?;
         }
         Ok(TokenType::Whitespace)
     }
@@ -179,25 +179,30 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn advance_if_matches(&mut self, expected: char) -> bool {
-        if self.is_at_end() || self.peek() != expected {
-            false
+    fn advance_if_matches(&mut self, expected: char) -> Result<bool, LexerError> {
+        if self.is_at_end() || self.peek()? != expected {
+            Ok(false)
         } else {
             self.state.current += 1;
-            true
+            Ok(true)
         }
     }
 
-    fn advance_while<F>(&mut self, condition: F)
+    fn advance_while<F>(&mut self, condition: F) -> Result<(), LexerError>
     where
         F: Fn(char) -> bool,
     {
-        while !self.is_at_end() && condition(self.peek()) {
-            if self.peek() == '\n' {
+        while !self.is_at_end() {
+            let current_char = self.peek()?;
+            if !condition(current_char) {
+                break;
+            }
+            if current_char == '\n' {
                 self.state.line += 1;
             }
-            self.advance();
+            self.advance()?;
         }
+        Ok(())
     }
 
     fn is_token_boundary(c: char) -> bool {
@@ -210,10 +215,67 @@ impl<'a> Lexer<'a> {
     }
 }
 
+impl<'a> Scanner for Lexer<'a> {
+    type Item = char;
+    type Error = LexerError;
+
+    fn advance(&mut self) -> Result<Self::Item, Self::Error> {
+        let current_char = self.peek()?;
+        self.state.current += 1;
+        Ok(current_char)
+    }
+
+    fn peek(&self) -> Result<Self::Item, Self::Error> {
+        self.source[self.state.current..]
+            .chars()
+            .next()
+            .ok_or_else(|| {
+                LexerError::lexical_error::<Self::Item>(
+                    "Unexpected end of input",
+                    self.state.current,
+                )
+                .unwrap_err()
+            })
+    }
+
+    fn peek_next(&self) -> Result<Self::Item, Self::Error> {
+        self.source[self.state.current..]
+            .chars()
+            .nth(1)
+            .ok_or_else(|| {
+                LexerError::lexical_error::<Self::Item>(
+                    "Unexpected end of input",
+                    self.state.current + 1,
+                )
+                .unwrap_err()
+            })
+    }
+
+    fn previous(&self) -> Result<Self::Item, Self::Error> {
+        if self.state.current > 0 {
+            self.source[..self.state.current]
+                .chars()
+                .last()
+                .ok_or_else(|| {
+                    LexerError::lexical_error::<Self::Item>(
+                        "No previous character",
+                        self.state.current - 1,
+                    )
+                    .unwrap_err()
+                })
+        } else {
+            LexerError::lexical_error("No previous character", 0)
+        }
+    }
+
+    fn is_at_end(&self) -> bool {
+        self.state.current >= self.source.len()
+    }
+}
+
 impl<'a> Tokenizer for Lexer<'a> {
     type Token = Token<'a>;
     type TokenType = TokenType;
-    type Error = LexerError;
 
     fn tokenize(&mut self) -> Result<Vec<Self::Token>, Self::Error> {
         while !self.is_at_end() {
@@ -236,45 +298,6 @@ impl<'a> Tokenizer for Lexer<'a> {
             self.tokens
                 .push(Token::new(token_type, text, self.state.line));
         }
-    }
-}
-
-impl<'a> Scanner for Lexer<'a> {
-    type Item = char;
-
-    fn advance(&mut self) -> Self::Item {
-        let current_char = self.peek();
-        self.state.current += 1;
-        current_char
-    }
-
-    fn peek(&self) -> Self::Item {
-        self.source[self.state.current..]
-            .chars()
-            .next()
-            .unwrap_or('\0')
-    }
-
-    fn peek_next(&self) -> Self::Item {
-        self.source[self.state.current..]
-            .chars()
-            .nth(1)
-            .unwrap_or('\0')
-    }
-
-    fn previous(&self) -> Self::Item {
-        if self.state.current > 0 {
-            self.source[..self.state.current]
-                .chars()
-                .last()
-                .unwrap_or('\0')
-        } else {
-            '\0'
-        }
-    }
-
-    fn is_at_end(&self) -> bool {
-        self.state.current >= self.source.len()
     }
 }
 
