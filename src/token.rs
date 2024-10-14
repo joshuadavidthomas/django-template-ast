@@ -42,14 +42,14 @@ pub enum TokenType {
 }
 
 #[derive(Debug, Clone)]
-pub struct Token {
+pub struct Token<'a> {
     pub token_type: TokenType,
-    pub lexeme: String,
+    pub lexeme: &'a str,
     pub line: usize,
 }
 
-impl Token {
-    pub fn new(token_type: TokenType, lexeme: String, line: usize) -> Self {
+impl<'a> Token<'a> {
+    pub fn new(token_type: TokenType, lexeme: &'a str, line: usize) -> Self {
         Token {
             token_type,
             lexeme,
