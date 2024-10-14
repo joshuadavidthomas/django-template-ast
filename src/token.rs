@@ -36,8 +36,9 @@ pub enum TokenType {
     DoubleEqual,       // ==
     LeftAngleEqual,    // <=
     RightAngleEqual,   // =>
+    Text,              // All text input
     Whitespace,        // special token to account for whitespace
-    Text,
+    Newline,           // special token to account for newlines
     Eof,
 }
 

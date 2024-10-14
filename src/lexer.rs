@@ -1,15 +1,17 @@
 use crate::error::LexerError;
 use crate::scanner::{Scanner, ScannerState};
 use crate::token::{Token, TokenType, Tokenizer};
+use std::fs::OpenOptions;
+use std::io::Write;
 
-pub struct Lexer {
-    source: String,
+pub struct Lexer<'a> {
+    source: &'a str,
     tokens: Vec<Token>,
     state: ScannerState,
 }
 
-impl Lexer {
-    pub fn new(source: String) -> Self {
+impl<'a> Lexer<'a> {
+    pub fn new(source: &'a str) -> Self {
         Lexer {
             source,
             tokens: Vec::new(),
@@ -33,7 +35,8 @@ impl Lexer {
             '<' => self.handle_left_angle(),
             '>' => self.handle_right_angle(),
             '/' => self.handle_slash(),
-            ' ' | '\r' | '\t' | '\n' => self.handle_whitespace(),
+            '\n' => self.handle_newline(),
+            ' ' | '\r' | '\t' => self.handle_whitespace(),
             _ => self.handle_text(),
         };
 
@@ -151,13 +154,23 @@ impl Lexer {
         Ok(token_type)
     }
 
+    fn handle_newline(&mut self) -> Result<TokenType, LexerError> {
+        self.state.line += 1;
+        println!("Newline processed: now on line {}", self.state.line);
+        Ok(TokenType::Newline)
+    }
+
     fn handle_whitespace(&mut self) -> Result<TokenType, LexerError> {
-        while !self.is_at_end() && self.peek().is_whitespace() {
-            if self.peek() == '\n' {
-                self.state.line += 1;
-            }
+        let start_char = self.state.current - 1; // We've already advanced once
+        while !self.is_at_end()
+            && (self.peek() == ' ' || self.peek() == '\r' || self.peek() == '\t')
+        {
             self.advance();
         }
+        println!(
+            "Whitespace processed: line {}, chars {} to {}",
+            self.state.line, start_char, self.state.current
+        );
         Ok(TokenType::Whitespace)
     }
 
@@ -202,19 +215,27 @@ impl Lexer {
     }
 }
 
-impl Tokenizer for Lexer {
+impl<'a> Tokenizer for Lexer<'a> {
     type Token = Token;
     type TokenType = TokenType;
     type Error = LexerError;
 
     fn tokenize(&mut self) -> Result<Vec<Self::Token>, Self::Error> {
+        println!("Raw input:\n{:?}", self.source);
+        println!("Starting tokenization");
         while !self.is_at_end() {
             self.state.start = self.state.current;
             self.scan_token()?;
+            println!(
+                "Current state: start={}, current={}, line={}",
+                self.state.start, self.state.current, self.state.line
+            );
         }
 
         self.tokens
             .push(Token::new(TokenType::Eof, String::new(), self.state.line));
+        println!("Tokenization complete");
+        println!("Total tokens: {}", self.tokens.len());
         Ok(self.tokens.clone())
     }
 
@@ -224,14 +245,16 @@ impl Tokenizer for Lexer {
 
     fn add_token(&mut self, token_type: Self::TokenType) {
         let text = self.source[self.state.start..self.state.current].to_string();
-        if token_type != TokenType::Whitespace {
-            self.tokens
-                .push(Token::new(token_type, text, self.state.line));
-        }
+        println!(
+            "Adding token: {:?} with text {:?} on line {} (char index: {})",
+            token_type, text, self.state.line, self.state.current
+        );
+        self.tokens
+            .push(Token::new(token_type, text, self.state.line));
     }
 }
 
-impl Scanner for Lexer {
+impl<'a> Scanner for Lexer<'a> {
     type Item = char;
 
     fn advance(&mut self) -> Self::Item {
@@ -261,11 +284,11 @@ mod tests {
     use super::*;
 
     fn tokenize(input: &str) -> Vec<Token> {
-        let mut lexer = Lexer::new(input.to_string());
+        let mut lexer = Lexer::new(input);
         match lexer.tokenize() {
             Ok(tokens) => {
                 // Debug print all tokens
-                for (i, token) in tokens.iter().enumerate() {
+                for token in tokens.iter() {
                     println!("{:?}", token)
                 }
 
@@ -364,5 +387,44 @@ mod tests {
         assert_eq!(tokens[7].token_type, TokenType::DoubleQuote);
         assert_eq!(tokens[8].token_type, TokenType::PercentRightBrace);
         assert_eq!(tokens[9].token_type, TokenType::SingleQuote);
+    }
+
+    #[test]
+    fn test_complex_template() {
+        let template = r#"
+        {% if user.is_authenticated %}
+            Hello, {{ user.name }}!
+        {% else %}
+            Please log in.
+        {% endif %}
+    "#;
+
+        let tokens = tokenize(template);
+
+        // Group tokens by line
+        let mut tokens_by_line: std::collections::HashMap<usize, Vec<TokenType>> =
+            std::collections::HashMap::new();
+        for token in tokens {
+            tokens_by_line
+                .entry(token.line)
+                .or_insert(Vec::new())
+                .push(token.token_type);
+        }
+
+        // Print tokens grouped by line
+        let mut lines: Vec<_> = tokens_by_line.keys().collect();
+        lines.sort();
+        for &line in lines.iter() {
+            if let Some(token_types) = tokens_by_line.get(line) {
+                println!("Line {}: {:?}", line, token_types);
+            }
+        }
+
+        // Add assertions to check if tokens are on the correct lines
+        assert!(tokens_by_line.contains_key(&2)); // {% if user.is_authenticated %}
+        assert!(tokens_by_line.contains_key(&3)); // Hello, {{ user.name }}!
+        assert!(tokens_by_line.contains_key(&4)); // {% else %}
+        assert!(tokens_by_line.contains_key(&5)); // Please log in.
+        assert!(tokens_by_line.contains_key(&6)); // {% endif %}
     }
 }
