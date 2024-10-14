@@ -142,7 +142,7 @@ impl<'a> Lexer<'a> {
     fn handle_slash(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('/')? {
             while self.peek()? != '\n' && !self.is_at_end() {
-                self.advance();
+                self.advance()?;
             }
             TokenType::Text
         } else {
@@ -158,7 +158,7 @@ impl<'a> Lexer<'a> {
                     self.state.line += 1;
                 }
                 '\r' if self.peek()? == '\n' => {
-                    self.advance();
+                    self.advance()?;
                     self.state.line += 1;
                 }
                 ' ' | '\t' | '\r' => {}
@@ -170,7 +170,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn handle_text(&mut self) -> Result<TokenType, LexerError> {
-        self.advance_while(|c| !Self::is_token_boundary(c));
+        self.advance_while(|c| !Self::is_token_boundary(c))?;
 
         if self.state.start == self.state.current {
             LexerError::empty_token(self.state.line)
