@@ -58,7 +58,7 @@ impl<'a> Lexer<'a> {
             '|' => TokenType::Pipe,
             '\'' => TokenType::SingleQuote,
             '"' => TokenType::DoubleQuote,
-            _ => return Err(LexerError::UnexpectedCharacter(c, self.state.line)),
+            _ => return LexerError::unexpected_character(c, self.state.line),
         };
         Ok(token_type)
     }
@@ -162,7 +162,7 @@ impl<'a> Lexer<'a> {
                     self.state.line += 1;
                 }
                 ' ' | '\t' | '\r' => {}
-                _ => return Err(LexerError::UnexpectedCharacter(c, self.state.line)),
+                _ => return LexerError::unexpected_character(c, self.state.line),
             }
             c = self.advance();
         }
@@ -173,7 +173,7 @@ impl<'a> Lexer<'a> {
         self.advance_while(|c| !Self::is_token_boundary(c));
 
         if self.state.start == self.state.current {
-            Err(LexerError::EmptyToken(self.state.line))
+            LexerError::empty_token(self.state.line)
         } else {
             Ok(TokenType::Text)
         }
