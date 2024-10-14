@@ -33,7 +33,7 @@ impl<'a> Lexer<'a> {
             '<' => self.handle_left_angle(),
             '>' => self.handle_right_angle(),
             '/' => self.handle_slash(),
-            ' ' | '\r' | '\t' | '\n' => self.handle_whitespace(),
+            ' ' | '\r' | '\t' | '\n' => self.handle_whitespace(c),
             _ => self.handle_text(),
         };
 
@@ -151,12 +151,20 @@ impl<'a> Lexer<'a> {
         Ok(token_type)
     }
 
-    fn handle_whitespace(&mut self) -> Result<TokenType, LexerError> {
+    fn handle_whitespace(&mut self, mut c: char) -> Result<TokenType, LexerError> {
         while !self.is_at_end() && self.peek().is_whitespace() {
-            if self.peek() == '\n' {
-                self.state.line += 1;
+            match c {
+                '\n' => {
+                    self.state.line += 1;
+                }
+                '\r' if self.peek() == '\n' => {
+                    self.advance();
+                    self.state.line += 1;
+                }
+                ' ' | '\t' | '\r' => {}
+                _ => return Err(LexerError::UnexpectedCharacter(c, self.state.line)),
             }
-            self.advance();
+            c = self.advance();
         }
         Ok(TokenType::Whitespace)
     }
@@ -241,13 +249,16 @@ impl<'a> Scanner for Lexer<'a> {
     }
 
     fn peek(&self) -> Self::Item {
-        self.source.chars().nth(self.state.current).unwrap_or('\0')
+        self.source[self.state.current..]
+            .chars()
+            .next()
+            .unwrap_or('\0')
     }
 
     fn peek_next(&self) -> Self::Item {
-        self.source
+        self.source[self.state.current..]
             .chars()
-            .nth(self.state.current + 1)
+            .nth(1)
             .unwrap_or('\0')
     }
 
@@ -364,5 +375,22 @@ mod tests {
         assert_eq!(tokens[7].token_type, TokenType::DoubleQuote);
         assert_eq!(tokens[8].token_type, TokenType::PercentRightBrace);
         assert_eq!(tokens[9].token_type, TokenType::SingleQuote);
+    }
+
+    #[test]
+    fn test_multiline_template() {
+        let template = r#"\
+        {% if user.is_authenticated %}
+            Hello, {{ user.name }}!
+        {% else %}
+            Please log in.
+        {% endif %}
+    "#;
+        let tokens = tokenize(template);
+        assert_eq!(tokens[0].line, 1);
+        assert_eq!(tokens[6].line, 2);
+        assert_eq!(tokens[14].line, 3);
+        assert_eq!(tokens[17].line, 4);
+        assert_eq!(tokens[21].line, 5);
     }
 }
