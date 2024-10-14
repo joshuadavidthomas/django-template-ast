@@ -1,11 +1,11 @@
 use crate::error::LexerError;
-use crate::scanner::{Scanner, ScannerState};
+use crate::scanner::{LexerState, Scanner};
 use crate::token::{Token, TokenType, Tokenizer};
 
 pub struct Lexer<'a> {
     source: &'a str,
     tokens: Vec<Token>,
-    state: ScannerState,
+    state: LexerState,
 }
 
 impl<'a> Lexer<'a> {
@@ -13,7 +13,7 @@ impl<'a> Lexer<'a> {
         Lexer {
             source,
             tokens: Vec::new(),
-            state: ScannerState::new(),
+            state: LexerState::new(),
         }
     }
 
@@ -260,6 +260,17 @@ impl<'a> Scanner for Lexer<'a> {
             .chars()
             .nth(1)
             .unwrap_or('\0')
+    }
+
+    fn previous(&self) -> Self::Item {
+        if self.state.current > 0 {
+            self.source[..self.state.current]
+                .chars()
+                .last()
+                .unwrap_or('\0')
+        } else {
+            '\0'
+        }
     }
 
     fn is_at_end(&self) -> bool {
