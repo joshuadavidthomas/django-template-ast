@@ -52,7 +52,12 @@ impl<'a> Lexer<'a> {
             '|' => TokenType::Pipe,
             '\'' => TokenType::SingleQuote,
             '"' => TokenType::DoubleQuote,
-            _ => return LexerError::unexpected_character(c, self.state.line),
+            _ => {
+                return Err(LexerError::UnexpectedCharacter {
+                    character: c,
+                    line: self.state.line,
+                })
+            }
         };
         Ok(token_type)
     }
@@ -156,7 +161,12 @@ impl<'a> Lexer<'a> {
                     self.state.line += 1;
                 }
                 ' ' | '\t' | '\r' => {}
-                _ => return LexerError::unexpected_character(c, self.state.line),
+                _ => {
+                    return Err(LexerError::UnexpectedCharacter {
+                        character: c,
+                        line: self.state.line,
+                    })
+                }
             }
             c = self.advance()?;
         }
@@ -167,7 +177,9 @@ impl<'a> Lexer<'a> {
         self.advance_while(|c| !Self::is_token_boundary(c))?;
 
         if self.state.start == self.state.current {
-            LexerError::empty_token(self.state.line)
+            Err(LexerError::EmptyToken {
+                line: self.state.line,
+            })
         } else {
             Ok(TokenType::Text)
         }
@@ -220,45 +232,35 @@ impl<'a> Scanner for Lexer<'a> {
     }
 
     fn peek(&self) -> Result<Self::Item, Self::Error> {
-        self.source[self.state.current..]
-            .chars()
-            .next()
-            .ok_or_else(|| {
-                LexerError::lexical_error::<Self::Item>(
-                    "Unexpected end of input",
-                    self.state.current,
-                )
-                .unwrap_err()
-            })
+        self.item_at(self.state.current)
     }
 
     fn peek_next(&self) -> Result<Self::Item, Self::Error> {
-        self.source[self.state.current..]
-            .chars()
-            .nth(1)
-            .ok_or_else(|| {
-                LexerError::lexical_error::<Self::Item>(
-                    "Unexpected end of input",
-                    self.state.current + 1,
-                )
-                .unwrap_err()
-            })
+        self.item_at(self.state.current + 1)
     }
 
     fn previous(&self) -> Result<Self::Item, Self::Error> {
         if self.state.current > 0 {
-            self.source[..self.state.current]
-                .chars()
-                .last()
-                .ok_or_else(|| {
-                    LexerError::lexical_error::<Self::Item>(
-                        "No previous character",
-                        self.state.current - 1,
-                    )
-                    .unwrap_err()
-                })
+            self.item_at(self.state.current - 1)
         } else {
-            LexerError::lexical_error("No previous character", 0)
+            Err(LexerError::AtBeginningOfInput)
+        }
+    }
+
+    fn item_at(&self, index: usize) -> Result<Self::Item, Self::Error> {
+        match self.source.chars().nth(index) {
+            Some(ch) => Ok(ch),
+            None => {
+                let error = if self.source.is_empty() || index == 0 {
+                    LexerError::AtBeginningOfInput
+                } else if index >= self.source.len() {
+                    LexerError::AtEndOfInput
+                } else {
+                    LexerError::InvalidCharacterAccess
+                };
+
+                Err(error)
+            }
         }
     }
 

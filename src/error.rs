@@ -1,64 +1,16 @@
-use std::fmt;
+use thiserror::Error;
 
-pub trait ErrorMessage {
-    fn message(&self) -> &str;
-}
-
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum LexerError {
-    EmptyToken {
-        line: usize,
-        message: String,
-    },
-    UnexpectedCharacter {
-        character: char,
-        line: usize,
-        message: String,
-    },
-    LexicalError {
-        position: usize,
-        message: String,
-    },
+    #[error("Empty token at line {line:?}")]
+    EmptyToken { line: usize },
+    #[error("Unexpected character '{character}' at line {line}")]
+    UnexpectedCharacter { character: char, line: usize },
+    #[error("At beginning of input")]
+    AtBeginningOfInput,
+    #[error("At end of input")]
+    AtEndOfInput,
+    #[error("Invalid character access")]
+    InvalidCharacterAccess,
+
 }
-
-impl LexerError {
-    pub fn empty_token<T>(line: usize) -> Result<T, Self> {
-        Err(LexerError::EmptyToken {
-            line,
-            message: format!("Empty token at line {}", line),
-        })
-    }
-
-    pub fn unexpected_character<T>(character: char, line: usize) -> Result<T, Self> {
-        Err(LexerError::UnexpectedCharacter {
-            character,
-            line,
-            message: format!("Unexpected character '{}' at line {}", character, line),
-        })
-    }
-
-    pub fn lexical_error<T>(message: &str, position: usize) -> Result<T, Self> {
-        Err(LexerError::LexicalError {
-            position,
-            message: format!("Lexical error at position {}: {}", position, message),
-        })
-    }
-}
-
-impl ErrorMessage for LexerError {
-    fn message(&self) -> &str {
-        match self {
-            LexerError::EmptyToken { message, .. }
-            | LexerError::UnexpectedCharacter { message, .. }
-            | LexerError::LexicalError { message, .. } => message,
-        }
-    }
-}
-
-impl fmt::Display for LexerError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.message())
-    }
-}
-
-impl std::error::Error for LexerError {}
