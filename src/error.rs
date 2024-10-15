@@ -12,6 +12,5 @@ pub enum LexerError {
     AtEndOfInput,
     #[error("Invalid character access")]
     InvalidCharacterAccess,
-}
 
 }
