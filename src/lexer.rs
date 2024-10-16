@@ -215,10 +215,10 @@ impl<'a> Lexer<'a> {
             if !condition(current_char) {
                 break;
             }
-            self.advance()?;
             if current_char == '\n' {
                 self.state.line += 1;
             }
+            self.advance()?;
         }
         Ok(())
     }
