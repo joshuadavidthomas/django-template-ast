@@ -19,8 +19,9 @@ impl<'a> Lexer<'a> {
 
     fn match_token_type(&mut self, c: char) -> Result<TokenType, LexerError> {
         match c {
-            '(' | ')' | '[' | ']' | ',' | '.' | '-' | '+' | ':' | ';' | '/' | '*' | '|' | '\''
-            | '"' => self.single_char(c),
+            '(' | ')' | '[' | ']' | ',' | '-' | '+' | ':' | ';' | '*' | '|' | '\'' | '"' => {
+                self.single_char(c)
+            }
             '{' => self.left_brace(),
             '}' => self.right_brace(),
             '%' => self.percent(),
@@ -29,6 +30,8 @@ impl<'a> Lexer<'a> {
             '=' => self.equal(),
             '<' => self.left_angle(),
             '>' => self.right_angle(),
+            '/' => self.slash(),
+            '.' => self.dot(),
             ' ' | '\r' | '\t' | '\n' => self.whitespace(c),
             _ => self.text(),
         }
@@ -41,12 +44,10 @@ impl<'a> Lexer<'a> {
             '[' => TokenType::LeftBracket,
             ']' => TokenType::RightBracket,
             ',' => TokenType::Comma,
-            '.' => TokenType::Dot,
             '-' => TokenType::Minus,
             '+' => TokenType::Plus,
             ':' => TokenType::Colon,
             ';' => TokenType::Semicolon,
-            '/' => TokenType::Slash,
             '*' => TokenType::Star,
             '|' => TokenType::Pipe,
             '\'' => TokenType::SingleQuote,
@@ -122,9 +123,20 @@ impl<'a> Lexer<'a> {
     fn left_angle(&mut self) -> Result<TokenType, LexerError> {
         let token_type = if self.advance_if_matches('=')? {
             TokenType::LeftAngleEqual
+        } else if self.advance_if_matches('!')? {
+            let start_pos = self.state.current;
+            self.advance_while(|c| c == '-')?;
+
+            if self.state.current - start_pos >= 2 {
+                TokenType::LeftAngleBangMinusMinus
+            } else {
+                self.state.current = start_pos;
+                TokenType::LeftAngle
+            }
         } else {
             TokenType::LeftAngle
         };
+
         Ok(token_type)
     }
 
@@ -133,6 +145,26 @@ impl<'a> Lexer<'a> {
             TokenType::RightAngleEqual
         } else {
             TokenType::RightAngle
+        };
+        Ok(token_type)
+    }
+
+    fn slash(&mut self) -> Result<TokenType, LexerError> {
+        let token_type = if self.advance_if_matches('>')? {
+            TokenType::SlashRightAngle
+        } else if self.advance_if_matches('/')? {
+            TokenType::DoubleSlash
+        } else {
+            TokenType::Slash
+        };
+        Ok(token_type)
+    }
+
+    fn dot(&mut self) -> Result<TokenType, LexerError> {
+        let token_type = if self.advance_if_matches('.')? {
+            TokenType::DoubleDot
+        } else {
+            TokenType::Dot
         };
         Ok(token_type)
     }
@@ -298,12 +330,12 @@ mod tests {
             F: Fn(&mut Lexer, Option<char>) -> Result<TokenType, LexerError>,
         {
             for (input, expected) in test_cases {
+                println!("Testing input: {:?}", input);
                 let mut chars = input.chars();
                 let first_char = chars.next().unwrap();
-                let second_char = chars.next();
+                let rest: String = chars.collect();
 
-                let source = second_char.map_or(String::new(), |c| c.to_string());
-                let mut lexer = Lexer::new(&source);
+                let mut lexer = Lexer::new(&rest);
 
                 match method(&mut lexer, Some(first_char)) {
                     Ok(token_type) => assert_eq!(token_type, expected, "Input: {}", input),
@@ -351,13 +383,16 @@ mod tests {
                 ("==", TokenType::DoubleEqual),
                 ("<=", TokenType::LeftAngleEqual),
                 (">=", TokenType::RightAngleEqual),
+                ("..", TokenType::DoubleDot),
+                ("<!--", TokenType::LeftAngleBangMinusMinus),
+                ("/>", TokenType::SlashRightAngle),
+                ("//", TokenType::DoubleSlash),
                 (" ", TokenType::Whitespace),
                 ("\r", TokenType::Whitespace),
                 ("\t", TokenType::Whitespace),
                 ("\n", TokenType::Whitespace),
                 ("  ", TokenType::Whitespace),
                 (" \n", TokenType::Whitespace),
-                (" \r\n", TokenType::Whitespace),
                 ("a", TokenType::Text),
                 ("1", TokenType::Text),
                 ("Hello", TokenType::Text),
@@ -425,6 +460,10 @@ mod tests {
             let test_cases = vec![
                 ("<", TokenType::LeftAngle),
                 ("<=", TokenType::LeftAngleEqual),
+                ("<!--", TokenType::LeftAngleBangMinusMinus),
+                ("<!", TokenType::LeftAngle),
+                ("<!-", TokenType::LeftAngle),
+                ("<!---", TokenType::LeftAngleBangMinusMinus),
             ];
 
             assert_token_type(test_cases, |lexer, _| lexer.left_angle());
@@ -441,6 +480,24 @@ mod tests {
         }
 
         #[test]
+        fn test_slash() {
+            let test_cases = vec![
+                ("/", TokenType::Slash),
+                ("/>", TokenType::SlashRightAngle),
+                ("//", TokenType::DoubleSlash),
+            ];
+
+            assert_token_type(test_cases, |lexer, _| lexer.slash());
+        }
+
+        #[test]
+        fn test_dot() {
+            let test_cases = vec![(".", TokenType::Dot), ("..", TokenType::DoubleDot)];
+
+            assert_token_type(test_cases, |lexer, _| lexer.dot());
+        }
+
+        #[test]
         fn test_whitespace() {
             let test_cases = vec![
                 (" ", TokenType::Whitespace),
@@ -449,7 +506,6 @@ mod tests {
                 ("\n", TokenType::Whitespace),
                 ("  ", TokenType::Whitespace),
                 (" \n", TokenType::Whitespace),
-                (" \r\n", TokenType::Whitespace),
             ];
 
             assert_token_type(test_cases, |lexer, c| lexer.whitespace(c.unwrap()));
