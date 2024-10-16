@@ -19,9 +19,7 @@ impl<'a> Lexer<'a> {
 
     fn match_token_type(&mut self, c: char) -> Result<TokenType, LexerError> {
         match c {
-            '(' | ')' | '[' | ']' | ',' | '-' | '+' | ':' | ';' | '*' | '|' | '\'' | '"' => {
-                self.single_char(c)
-            }
+            ',' | '.' | '+' | ':' | '|' | '\'' | '"' => self.single_char(c),
             '{' => self.left_brace(),
             '}' => self.right_brace(),
             '%' => self.percent(),
@@ -31,7 +29,8 @@ impl<'a> Lexer<'a> {
             '<' => self.left_angle(),
             '>' => self.right_angle(),
             '/' => self.slash(),
-            '.' => self.dot(),
+            '-' => self.dash(),
+            '*' => self.star(),
             ' ' | '\r' | '\t' | '\n' => self.whitespace(c),
             _ => self.text(),
         }
@@ -39,16 +38,10 @@ impl<'a> Lexer<'a> {
 
     fn single_char(&mut self, c: char) -> Result<TokenType, LexerError> {
         let token_type = match c {
-            '(' => TokenType::LeftParen,
-            ')' => TokenType::RightParen,
-            '[' => TokenType::LeftBracket,
-            ']' => TokenType::RightBracket,
             ',' => TokenType::Comma,
-            '-' => TokenType::Minus,
+            '.' => TokenType::Dot,
             '+' => TokenType::Plus,
             ':' => TokenType::Colon,
-            ';' => TokenType::Semicolon,
-            '*' => TokenType::Star,
             '|' => TokenType::Pipe,
             '\'' => TokenType::SingleQuote,
             '"' => TokenType::DoubleQuote,
@@ -70,7 +63,7 @@ impl<'a> Lexer<'a> {
         } else if self.advance_if_matches('#')? {
             TokenType::LeftBraceHash
         } else {
-            TokenType::LeftBrace
+            self.text()?
         };
         Ok(token_type)
     }
@@ -79,7 +72,7 @@ impl<'a> Lexer<'a> {
         let token_type = if self.advance_if_matches('}')? {
             TokenType::DoubleRightBrace
         } else {
-            TokenType::RightBrace
+            self.text()?
         };
         Ok(token_type)
     }
@@ -97,7 +90,7 @@ impl<'a> Lexer<'a> {
         let token_type = if self.advance_if_matches('}')? {
             TokenType::HashRightBrace
         } else {
-            TokenType::Hash
+            self.text()?
         };
         Ok(token_type)
     }
@@ -128,7 +121,7 @@ impl<'a> Lexer<'a> {
             self.advance_while(|c| c == '-')?;
 
             if self.state.current - start_pos >= 2 {
-                TokenType::LeftAngleBangMinusMinus
+                TokenType::LeftAngleBangDashDash
             } else {
                 self.state.current = start_pos;
                 TokenType::LeftAngle
@@ -154,17 +147,32 @@ impl<'a> Lexer<'a> {
             TokenType::SlashRightAngle
         } else if self.advance_if_matches('/')? {
             TokenType::DoubleSlash
+        } else if self.advance_if_matches('*')? {
+            TokenType::SlashStar
         } else {
             TokenType::Slash
         };
         Ok(token_type)
     }
 
-    fn dot(&mut self) -> Result<TokenType, LexerError> {
-        let token_type = if self.advance_if_matches('.')? {
-            TokenType::DoubleDot
+    fn dash(&mut self) -> Result<TokenType, LexerError> {
+        let token_type = if self.advance_if_matches('-')? {
+            if self.advance_if_matches('>')? {
+                TokenType::DashDashRightAngle
+            } else {
+                self.text()?
+            }
         } else {
-            TokenType::Dot
+            TokenType::Dash
+        };
+        Ok(token_type)
+    }
+
+    fn star(&mut self) -> Result<TokenType, LexerError> {
+        let token_type = if self.advance_if_matches('/')? {
+            TokenType::StarSlash
+        } else {
+            self.text()?
         };
         Ok(token_type)
     }
@@ -350,27 +358,18 @@ mod tests {
         #[test]
         fn test_match_token_type() {
             let test_cases = vec![
-                ("(", TokenType::LeftParen),
-                (")", TokenType::RightParen),
-                ("{", TokenType::LeftBrace),
-                ("}", TokenType::RightBrace),
-                ("[", TokenType::LeftBracket),
-                ("]", TokenType::RightBracket),
                 ("<", TokenType::LeftAngle),
                 (">", TokenType::RightAngle),
                 (",", TokenType::Comma),
                 (".", TokenType::Dot),
-                ("-", TokenType::Minus),
+                ("-", TokenType::Dash),
                 ("+", TokenType::Plus),
                 (":", TokenType::Colon),
-                (";", TokenType::Semicolon),
                 ("/", TokenType::Slash),
-                ("*", TokenType::Star),
                 ("!", TokenType::Bang),
                 ("=", TokenType::Equal),
                 ("|", TokenType::Pipe),
                 ("%", TokenType::Percent),
-                ("#", TokenType::Hash),
                 ("'", TokenType::SingleQuote),
                 ("\"", TokenType::DoubleQuote),
                 ("{{", TokenType::DoubleLeftBrace),
@@ -383,10 +382,12 @@ mod tests {
                 ("==", TokenType::DoubleEqual),
                 ("<=", TokenType::LeftAngleEqual),
                 (">=", TokenType::RightAngleEqual),
-                ("..", TokenType::DoubleDot),
-                ("<!--", TokenType::LeftAngleBangMinusMinus),
+                ("<!--", TokenType::LeftAngleBangDashDash),
+                ("-->", TokenType::DashDashRightAngle),
                 ("/>", TokenType::SlashRightAngle),
                 ("//", TokenType::DoubleSlash),
+                ("/*", TokenType::SlashStar),
+                ("*/", TokenType::StarSlash),
                 (" ", TokenType::Whitespace),
                 ("\r", TokenType::Whitespace),
                 ("\t", TokenType::Whitespace),
@@ -404,11 +405,10 @@ mod tests {
         #[test]
         fn test_left_brace() {
             let test_cases = vec![
-                ("{", TokenType::LeftBrace),
                 ("{{", TokenType::DoubleLeftBrace),
                 ("{%", TokenType::LeftBracePercent),
                 ("{#", TokenType::LeftBraceHash),
-                ("{a", TokenType::LeftBrace),
+                ("{", TokenType::Text),
             ];
 
             assert_token_type(test_cases, |lexer, _| lexer.left_brace());
@@ -416,10 +416,7 @@ mod tests {
 
         #[test]
         fn test_right_brace() {
-            let test_cases = vec![
-                ("}", TokenType::RightBrace),
-                ("}}", TokenType::DoubleRightBrace),
-            ];
+            let test_cases = vec![("}}", TokenType::DoubleRightBrace), ("}", TokenType::Text)];
 
             assert_token_type(test_cases, |lexer, _| lexer.right_brace());
         }
@@ -432,13 +429,6 @@ mod tests {
             ];
 
             assert_token_type(test_cases, |lexer, _| lexer.percent());
-        }
-
-        #[test]
-        fn test_hash() {
-            let test_cases = vec![("#", TokenType::Hash), ("#}", TokenType::HashRightBrace)];
-
-            assert_token_type(test_cases, |lexer, _| lexer.hash());
         }
 
         #[test]
@@ -460,10 +450,10 @@ mod tests {
             let test_cases = vec![
                 ("<", TokenType::LeftAngle),
                 ("<=", TokenType::LeftAngleEqual),
-                ("<!--", TokenType::LeftAngleBangMinusMinus),
+                ("<!--", TokenType::LeftAngleBangDashDash),
                 ("<!", TokenType::LeftAngle),
                 ("<!-", TokenType::LeftAngle),
-                ("<!---", TokenType::LeftAngleBangMinusMinus),
+                ("<!---", TokenType::LeftAngleBangDashDash),
             ];
 
             assert_token_type(test_cases, |lexer, _| lexer.left_angle());
@@ -485,16 +475,28 @@ mod tests {
                 ("/", TokenType::Slash),
                 ("/>", TokenType::SlashRightAngle),
                 ("//", TokenType::DoubleSlash),
+                ("/*", TokenType::SlashStar),
             ];
 
             assert_token_type(test_cases, |lexer, _| lexer.slash());
         }
 
         #[test]
-        fn test_dot() {
-            let test_cases = vec![(".", TokenType::Dot), ("..", TokenType::DoubleDot)];
+        fn test_dash() {
+            let test_cases = vec![
+                ("-", TokenType::Dash),
+                ("-->", TokenType::DashDashRightAngle),
+                ("--", TokenType::Text),
+            ];
 
-            assert_token_type(test_cases, |lexer, _| lexer.dot());
+            assert_token_type(test_cases, |lexer, _| lexer.dash());
+        }
+
+        #[test]
+        fn test_star() {
+            let test_cases = vec![("*/", TokenType::StarSlash), ("*", TokenType::Text)];
+
+            assert_token_type(test_cases, |lexer, _| lexer.star());
         }
 
         #[test]

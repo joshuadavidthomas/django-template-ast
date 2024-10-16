@@ -3,45 +3,37 @@ use std::fmt::Debug;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
-    LeftParen,               // (
-    RightParen,              // )
-    LeftBrace,               // {
-    RightBrace,              // }
-    LeftBracket,             // [
-    RightBracket,            // ]
-    LeftAngle,               // <
-    RightAngle,              // >
-    Comma,                   // ,
-    Dot,                     // .
-    Minus,                   // -
-    Plus,                    // +
-    Colon,                   // :
-    Semicolon,               // ;
-    Slash,                   // /
-    Star,                    // *
-    Bang,                    // !
-    Equal,                   // =
-    Pipe,                    // |
-    Percent,                 // %
-    Hash,                    // #
-    SingleQuote,             // '
-    DoubleQuote,             // "
-    DoubleLeftBrace,         // {{
-    DoubleRightBrace,        // }}
-    LeftBracePercent,        // {%
-    PercentRightBrace,       // %}
-    LeftBraceHash,           // {#
-    HashRightBrace,          // #}
-    BangEqual,               // !=
-    DoubleEqual,             // ==
-    LeftAngleEqual,          // <=
-    RightAngleEqual,         // =>
-    DoubleDot,               // ..
-    LeftAngleBangMinusMinus, // <!--
-    MinusMinusRightAngle,    // -->
-    SlashRightAngle,         // />
-    DoubleSlash,             // //
-    Whitespace,              // special token to account for whitespace
+    LeftAngle,             // <
+    RightAngle,            // >
+    Comma,                 // ,
+    Dot,                   // .
+    Dash,                  // -
+    Plus,                  // +
+    Colon,                 // :
+    Slash,                 // /
+    Bang,                  // !
+    Equal,                 // =
+    Pipe,                  // |
+    Percent,               // %
+    SingleQuote,           // '
+    DoubleQuote,           // "
+    DoubleLeftBrace,       // {{
+    DoubleRightBrace,      // }}
+    LeftBracePercent,      // {%
+    PercentRightBrace,     // %}
+    LeftBraceHash,         // {#
+    HashRightBrace,        // #}
+    BangEqual,             // !=
+    DoubleEqual,           // ==
+    LeftAngleEqual,        // <=
+    RightAngleEqual,       // =>
+    LeftAngleBangDashDash, // <!--
+    DashDashRightAngle,    // -->
+    SlashRightAngle,       // />
+    DoubleSlash,           // //
+    SlashStar,             // /*
+    StarSlash,             // */
+    Whitespace,            // special token to account for whitespace
     Text,
     Eof,
 }
