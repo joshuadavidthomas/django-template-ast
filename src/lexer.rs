@@ -19,9 +19,8 @@ impl<'a> Lexer<'a> {
 
     fn match_token_type(&mut self, c: char) -> Result<TokenType, LexerError> {
         match c {
-            '(' | ')' | '[' | ']' | ',' | '.' | '-' | '+' | ':' | ';' | '*' | '|' | '\'' | '"' => {
-                self.single_char(c)
-            }
+            '(' | ')' | '[' | ']' | ',' | '.' | '-' | '+' | ':' | ';' | '/' | '*' | '|' | '\''
+            | '"' => self.single_char(c),
             '{' => self.left_brace(),
             '}' => self.right_brace(),
             '%' => self.percent(),
@@ -30,7 +29,6 @@ impl<'a> Lexer<'a> {
             '=' => self.equal(),
             '<' => self.left_angle(),
             '>' => self.right_angle(),
-            '/' => self.slash(),
             ' ' | '\r' | '\t' | '\n' => self.whitespace(c),
             _ => self.text(),
         }
@@ -48,6 +46,7 @@ impl<'a> Lexer<'a> {
             '+' => TokenType::Plus,
             ':' => TokenType::Colon,
             ';' => TokenType::Semicolon,
+            '/' => TokenType::Slash,
             '*' => TokenType::Star,
             '|' => TokenType::Pipe,
             '\'' => TokenType::SingleQuote,
@@ -134,18 +133,6 @@ impl<'a> Lexer<'a> {
             TokenType::RightAngleEqual
         } else {
             TokenType::RightAngle
-        };
-        Ok(token_type)
-    }
-
-    fn slash(&mut self) -> Result<TokenType, LexerError> {
-        let token_type = if self.advance_if_matches('/')? {
-            while self.peek()? != '\n' && !self.is_at_end() {
-                self.advance()?;
-            }
-            TokenType::Text
-        } else {
-            TokenType::Slash
         };
         Ok(token_type)
     }
@@ -451,13 +438,6 @@ mod tests {
             ];
 
             assert_token_type(test_cases, |lexer, _| lexer.right_angle());
-        }
-
-        #[test]
-        fn test_slash() {
-            let test_cases = vec![("/", TokenType::Slash)];
-
-            assert_token_type(test_cases, |lexer, _| lexer.slash());
         }
 
         #[test]
