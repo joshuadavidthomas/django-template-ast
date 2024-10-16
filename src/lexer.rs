@@ -239,12 +239,8 @@ impl<'a> Scanner for Lexer<'a> {
         self.item_at(self.state.current + 1)
     }
 
-    fn previous(&self) -> Result<Self::Item, Self::Error> {
-        if self.state.current > 0 {
-            self.item_at(self.state.current - 1)
-        } else {
-            Err(LexerError::AtBeginningOfInput)
-        }
+    fn peek_previous(&self) -> Result<Self::Item, Self::Error> {
+        self.item_at(self.state.current - 1)
     }
 
     fn item_at(&self, index: usize) -> Result<Self::Item, Self::Error> {
