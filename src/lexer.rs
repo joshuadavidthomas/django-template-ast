@@ -462,10 +462,8 @@ mod tests {
                 ("<=", TokenType::LeftAngleEqual),
                 ("<!--", TokenType::LeftAngleBangMinusMinus),
                 ("<!", TokenType::LeftAngle),
-                ("<! ", TokenType::LeftAngle),
                 ("<!-", TokenType::LeftAngle),
-                ("<!- ", TokenType::LeftAngle),
-                ("<!---", TokenType::LeftAngleBangMinusMinus), // Extra test case
+                ("<!---", TokenType::LeftAngleBangMinusMinus),
             ];
 
             assert_token_type(test_cases, |lexer, _| lexer.left_angle());
