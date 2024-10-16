@@ -61,6 +61,16 @@ impl LexerState {
     }
 }
 
+pub struct ParserState {
+    pub current: usize,
+}
+
+impl ParserState {
+    pub fn new() -> Self {
+        ParserState { current: 0 }
+    }
+}
+
 pub trait Scanner {
     type Item: Debug;
     type Error: Debug + std::error::Error;
