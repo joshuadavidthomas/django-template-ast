@@ -244,19 +244,19 @@ impl<'a> Scanner for Lexer<'a> {
     }
 
     fn item_at(&self, index: usize) -> Result<Self::Item, Self::Error> {
-        match self.source.chars().nth(index) {
-            Some(ch) => Ok(ch),
-            None => {
-                let error = if self.source.is_empty() || index == 0 {
-                    LexerError::AtBeginningOfInput
-                } else if index >= self.source.len() {
-                    LexerError::AtEndOfInput
-                } else {
-                    LexerError::InvalidCharacterAccess
-                };
-
-                Err(error)
-            }
+        if let Some(ch) = self.source.chars().nth(index) {
+            Ok(ch)
+        } else {
+            let error = if self.source.is_empty() {
+                LexerError::EmptySource
+            } else if index < self.state.current {
+                LexerError::AtBeginningOfSource
+            } else if index >= self.source.len() {
+                LexerError::AtEndOfSource
+            } else {
+                LexerError::InvalidCharacterAccess
+            };
+            Err(error)
         }
     }
 
