@@ -27,28 +27,3 @@ pub enum TokenError {
     #[error("unexpected end of input, expected string literal")]
     UnexpectedEndOfInput,
 }
-
-#[derive(Error, Debug)]
-pub enum NodeError {
-    #[error("Tag name cannot be empty")]
-    NoTagName,
-    #[error("Block name cannot be empty")]
-    NoBlockName,
-}
-
-#[derive(Error, Debug)]
-pub enum ParserError {
-    #[error("Token stream is empty")]
-    EmptyTokenStream,
-    #[error("At beginning of token stream")]
-    AtBeginningOfStream,
-    #[error("At end of token stream")]
-    AtEndOfStream,
-    #[error("Invalid token access")]
-    InvalidTokenAccess,
-    #[error("AST error: {0}")]
-    ASTError(#[from] ASTError),
-}
-
-#[derive(Error, Debug)]
-pub enum ASTError {}
