@@ -5,10 +5,11 @@ mod token;
 
 use lexer::Lexer;
 use std::error::Error;
-use token::Tokenizer;
 
 pub fn compile(template: &str) -> Result<String, Box<dyn Error>> {
-    let tokens = Lexer::new(template).tokenize()?;
+    let mut lexer = Lexer::new(template);
+    let tokens = lexer.tokenize()?;
+    let ast = Parser::new(tokens.clone()).parse()?;
     println!("{:?}", tokens);
     todo!("Implement compilation process")
 }
