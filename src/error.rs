@@ -2,16 +2,28 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum LexerError {
-    #[error("Empty token at line {line:?}")]
+    #[error("empty token at line {line:?}")]
     EmptyToken { line: usize },
-    #[error("Unexpected character '{character}' at line {line}")]
+    #[error("unexpected character '{character}' at line {line}")]
     UnexpectedCharacter { character: char, line: usize },
-    #[error("Source is empty")]
+    #[error("source is empty")]
     EmptySource,
-    #[error("At beginning of source")]
+    #[error("at beginning of source")]
     AtBeginningOfSource,
-    #[error("At end of source")]
+    #[error("at end of source")]
     AtEndOfSource,
-    #[error("Invalid character access")]
+    #[error("invalid character access")]
     InvalidCharacterAccess,
+    #[error(transparent)] // Display the inner TokenError directly
+    TokenError(#[from] TokenError), // This automatically implements From<TokenError>
+}
+
+#[derive(Error, Debug)]
+pub enum TokenError {
+    #[error("unexpected character '{character}'")]
+    UnexpectedCharacter { character: char },
+    #[error("string did not match a token")]
+    NoTokenMatch,
+    #[error("unexpected end of input, expected string literal")]
+    UnexpectedEndOfInput,
 }
