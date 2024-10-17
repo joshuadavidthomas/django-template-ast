@@ -1,5 +1,6 @@
 use crate::error::TokenError;
 use std::fmt::Debug;
+use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
@@ -39,11 +40,28 @@ pub enum TokenType {
 }
 
 impl TokenType {
-    fn single_char(c: char) -> Result<(Self, usize), TokenError> {
-        let token_type;
-        let size = 1;
+    fn from_char(c: char, source: &str) -> Result<Self, TokenError> {
+        let token_type = match c {
+            ',' | '.' | '+' | ':' | '|' | '\'' | '"' => TokenType::single_char(c)?,
+            '{' => TokenType::left_brace(source)?,
+            '}' => TokenType::right_brace(source)?,
+            '%' => TokenType::percent(source)?,
+            '#' => TokenType::hash(source)?,
+            '!' => TokenType::bang(source)?,
+            '=' => TokenType::equal(source)?,
+            '<' => TokenType::left_angle(source)?,
+            '>' => TokenType::right_angle(source)?,
+            '/' => TokenType::slash(source)?,
+            '-' => TokenType::dash(source)?,
+            '*' => TokenType::star(source)?,
+            c if c.is_whitespace() => TokenType::Whitespace,
+            _ => TokenType::Text,
+        };
+        Ok(token_type)
+    }
 
-        token_type = match c {
+    fn single_char(c: char) -> Result<Self, TokenError> {
+        let token_type = match c {
             ',' => Self::Comma,
             '.' => Self::Dot,
             '+' => Self::Plus,
@@ -55,262 +73,191 @@ impl TokenType {
             '%' => Self::Percent,
             _ => return Err(TokenError::UnexpectedCharacter { character: c }),
         };
-
-        Ok((token_type, size))
+        Ok(token_type)
     }
 
-    fn left_brace(s: &str) -> Result<(Self, usize), TokenError> {
-        let token_type;
-        let size;
-
-        if s.starts_with("{{") {
-            token_type = Self::DoubleLeftBrace;
-            size = 2;
+    fn left_brace(s: &str) -> Result<Self, TokenError> {
+        let token_type = if s.starts_with("{{") {
+            Self::DoubleLeftBrace
         } else if s.starts_with("{%") {
-            token_type = Self::LeftBracePercent;
-            size = 2;
+            Self::LeftBracePercent
         } else if s.starts_with("{#") {
-            token_type = Self::LeftBraceHash;
-            size = 2;
+            Self::LeftBraceHash
         } else {
-            token_type = Self::Text;
-            size = 1;
-        }
-
-        Ok((token_type, size))
+            Self::Text
+        };
+        Ok(token_type)
     }
 
-    fn right_brace(s: &str) -> Result<(Self, usize), TokenError> {
-        let token_type;
-        let size;
-
-        if s.starts_with("}}") {
-            token_type = Self::DoubleRightBrace;
-            size = 2;
+    fn right_brace(s: &str) -> Result<Self, TokenError> {
+        let token_type = if s.starts_with("}}") {
+            Self::DoubleRightBrace
         } else {
-            token_type = Self::Text;
-            size = 1;
-        }
-
-        Ok((token_type, size))
+            Self::Text
+        };
+        Ok(token_type)
     }
 
-    fn percent(s: &str) -> Result<(Self, usize), TokenError> {
-        let token_type;
-        let size;
-
-        if s.starts_with("%}") {
-            token_type = Self::PercentRightBrace;
-            size = 2;
+    fn percent(s: &str) -> Result<Self, TokenError> {
+        let token_type = if s.starts_with("%}") {
+            Self::PercentRightBrace
         } else {
-            token_type = Self::Percent;
-            size = 1;
-        }
-
-        Ok((token_type, size))
+            Self::Percent
+        };
+        Ok(token_type)
     }
 
-    fn hash(s: &str) -> Result<(Self, usize), TokenError> {
-        let token_type;
-        let size;
-
-        if s.starts_with("#}") {
-            token_type = Self::HashRightBrace;
-            size = 2;
+    fn hash(s: &str) -> Result<Self, TokenError> {
+        let token_type = if s.starts_with("#}") {
+            Self::HashRightBrace
         } else {
-            token_type = Self::Text;
-            size = 1;
-        }
-
-        Ok((token_type, size))
+            Self::Text
+        };
+        Ok(token_type)
     }
 
-    fn bang(s: &str) -> Result<(Self, usize), TokenError> {
-        let token_type;
-        let size;
-
-        if s.starts_with("!=") {
-            token_type = Self::BangEqual;
-            size = 2;
+    fn bang(s: &str) -> Result<Self, TokenError> {
+        let token_type = if s.starts_with("!=") {
+            Self::BangEqual
         } else {
-            token_type = Self::Bang;
-            size = 1;
-        }
-
-        Ok((token_type, size))
+            Self::Bang
+        };
+        Ok(token_type)
     }
 
-    fn equal(s: &str) -> Result<(Self, usize), TokenError> {
-        let token_type;
-        let size;
-
-        if s.starts_with("==") {
-            token_type = Self::DoubleEqual;
-            size = 2;
+    fn equal(s: &str) -> Result<Self, TokenError> {
+        let token_type = if s.starts_with("==") {
+            Self::DoubleEqual
         } else {
-            token_type = Self::Equal;
-            size = 1;
-        }
-
-        Ok((token_type, size))
+            Self::Equal
+        };
+        Ok(token_type)
     }
 
-    fn left_angle(s: &str) -> Result<(Self, usize), TokenError> {
-        let token_type;
-        let size;
-
-        if s.starts_with("<=") {
-            token_type = Self::LeftAngleEqual;
-            size = 2;
+    fn left_angle(s: &str) -> Result<Self, TokenError> {
+        let token_type = if s.starts_with("<=") {
+            Self::LeftAngleEqual
         } else if s.starts_with("<!--") {
-            token_type = Self::LeftAngleBangDashDash;
-            size = 5;
+            Self::LeftAngleBangDashDash
         } else {
-            token_type = Self::LeftAngle;
-            size = 1;
-        }
-
-        Ok((token_type, size))
+            Self::LeftAngle
+        };
+        Ok(token_type)
     }
 
-    fn right_angle(s: &str) -> Result<(Self, usize), TokenError> {
-        let token_type;
-        let size;
-
-        if s.starts_with(">=") {
-            token_type = Self::RightAngleEqual;
-            size = 2;
+    fn right_angle(s: &str) -> Result<Self, TokenError> {
+        let token_type = if s.starts_with(">=") {
+            Self::RightAngleEqual
         } else {
-            token_type = Self::RightAngle;
-            size = 1;
-        }
-
-        Ok((token_type, size))
+            Self::RightAngle
+        };
+        Ok(token_type)
     }
 
-    fn slash(s: &str) -> Result<(Self, usize), TokenError> {
-        let token_type;
-        let size;
-
-        if s.starts_with("/>") {
-            token_type = Self::SlashRightAngle;
-            size = 2;
+    fn slash(s: &str) -> Result<Self, TokenError> {
+        let token_type = if s.starts_with("/>") {
+            Self::SlashRightAngle
         } else if s.starts_with("//") {
-            token_type = Self::DoubleSlash;
-            size = 2;
+            Self::DoubleSlash
         } else if s.starts_with("/*") {
-            token_type = Self::SlashStar;
-            size = 2;
+            Self::SlashStar
         } else if s.starts_with("*/") {
-            token_type = Self::StarSlash;
-            size = 2;
+            Self::StarSlash
         } else {
-            token_type = Self::Slash;
-            size = 1;
-        }
-
-        Ok((token_type, size))
+            Self::Slash
+        };
+        Ok(token_type)
     }
 
-    fn dash(s: &str) -> Result<(Self, usize), TokenError> {
-        let token_type;
-        let size;
-
-        if let Some(rest) = s.strip_prefix("--") {
+    fn dash(s: &str) -> Result<Self, TokenError> {
+        let token_type = if let Some(rest) = s.strip_prefix("--") {
             if rest.starts_with(">") {
-                token_type = Self::DashDashRightAngle;
-                size = 3;
+                Self::DashDashRightAngle
             } else {
-                token_type = Self::Text;
-                size = 2;
+                Self::Text
             }
         } else {
-            token_type = Self::Dash;
-            size = 1;
-        }
-
-        Ok((token_type, size))
+            Self::Dash
+        };
+        Ok(token_type)
     }
 
-    fn star(s: &str) -> Result<(Self, usize), TokenError> {
-        let token_type;
-        let size;
-
-        if s.starts_with("*/") {
-            token_type = Self::StarSlash;
-            size = 2;
+    fn star(s: &str) -> Result<Self, TokenError> {
+        let token_type = if s.starts_with("*/") {
+            Self::StarSlash
         } else {
-            token_type = Self::Text;
-            size = 1;
-        }
-
-        Ok((token_type, size))
+            Self::Text
+        };
+        Ok(token_type)
     }
 
-    fn whitespace(s: &str) -> Result<(Self, usize, usize), TokenError> {
-        let mut size = 0;
-        let mut lines = 0;
-        let mut chars = s.chars().peekable();
-
-        while let Some(&c) = chars.peek() {
-            match c {
-                ' ' | '\t' => {}
-                '\n' => {
-                    lines += 1;
-                }
-                '\r' => {
-                    chars.next();
-                    if chars.peek() == Some(&'\n') {
-                        chars.next();
+    pub fn size(&self, s: Option<&str>) -> Result<usize, TokenError> {
+        let size = match self {
+            Self::Eof => 0,
+            Self::LeftAngle
+            | Self::RightAngle
+            | Self::Comma
+            | Self::Dot
+            | Self::Dash
+            | Self::Plus
+            | Self::Colon
+            | Self::Slash
+            | Self::Bang
+            | Self::Equal
+            | Self::Pipe
+            | Self::Percent
+            | Self::SingleQuote
+            | Self::DoubleQuote => 1,
+            Self::DoubleLeftBrace
+            | Self::DoubleRightBrace
+            | Self::LeftBracePercent
+            | Self::PercentRightBrace
+            | Self::LeftBraceHash
+            | Self::HashRightBrace
+            | Self::BangEqual
+            | Self::DoubleEqual
+            | Self::LeftAngleEqual
+            | Self::RightAngleEqual
+            | Self::SlashRightAngle
+            | Self::DoubleSlash
+            | Self::SlashStar
+            | Self::StarSlash => 2,
+            Self::DashDashRightAngle => 3,
+            Self::LeftAngleBangDashDash => 4,
+            Self::Whitespace => s
+                .expect("must provide source to get size")
+                .chars()
+                .take_while(|&c| c.is_whitespace())
+                .map(|c| c.len_utf8())
+                .sum(),
+            Self::Text => {
+                let mut size = 0;
+                const TOKEN_BOUNDARIES: &[char] = &[
+                    '(', ')', '[', ']', '{', '}', ',', '.', '-', '+', ':', ';', '*', '|', '%', '#',
+                    '!', '=', '<', '>', '/', ' ', '\r', '\t', '\n', '"', '\'',
+                ];
+                for (i, c) in s
+                    .expect("must provide source to get size")
+                    .chars()
+                    .enumerate()
+                {
+                    if TOKEN_BOUNDARIES.contains(&c) {
+                        break;
                     }
-                    lines += 1;
+                    size = i + 1;
                 }
-                _ => break,
+                size
             }
-
-            size += c.len_utf8();
-            chars.next();
-        }
-
-        if size > 0 {
-            Ok((Self::Whitespace, size, lines))
-        } else {
-            Err(TokenError::NoTokenMatch)
-        }
-    }
-
-    fn text(s: &str) -> Result<(Self, usize), TokenError> {
-        let mut size = 0;
-
-        for (i, c) in s.chars().enumerate() {
-            if Self::is_token_boundary(c) {
-                break;
-            }
-            size = i + 1;
-        }
-
-        if size > 0 {
-            Ok((Self::Text, size))
-        } else {
-            Err(TokenError::NoTokenMatch)
-        }
-    }
-
-    fn is_token_boundary(c: char) -> bool {
-        const TOKEN_BOUNDARIES: &[char] = &[
-            '(', ')', '[', ']', '{', '}', ',', '.', '-', '+', ':', ';', '*', '|', '%', '#', '!',
-            '=', '<', '>', '/', ' ', '\r', '\t', '\n', '"', '\'',
-        ];
-
-        TOKEN_BOUNDARIES.contains(&c)
+        };
+        Ok(size)
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Token<'a> {
-    pub token_type: TokenType,
-    pub lexeme: &'a str,
-    pub line: usize,
+    token_type: TokenType,
+    lexeme: &'a str,
+    line: usize,
 }
 
 impl<'a> Token<'a> {
@@ -322,39 +269,107 @@ impl<'a> Token<'a> {
         }
     }
 
-    pub fn from_input(input: &'a str, line: usize) -> Result<(Self, usize, usize), TokenError> {
-        let c = input.chars().next().ok_or(TokenError::NoTokenMatch)?;
-
-        if c.is_whitespace() {
-            let (token_type, size, lines_consumed) = TokenType::whitespace(input)?;
-            return Ok((
-                Self::new(token_type, &input[..size.min(input.len())], line),
-                size,
-                lines_consumed,
-            ));
-        }
-
-        let (token_type, size) = match c {
-            ',' | '.' | '+' | ':' | '|' | '\'' | '"' => TokenType::single_char(c)?,
-            '{' => TokenType::left_brace(input)?,
-            '}' => TokenType::right_brace(input)?,
-            '%' => TokenType::percent(input)?,
-            '#' => TokenType::hash(input)?,
-            '!' => TokenType::bang(input)?,
-            '=' => TokenType::equal(input)?,
-            '<' => TokenType::left_angle(input)?,
-            '>' => TokenType::right_angle(input)?,
-            '/' => TokenType::slash(input)?,
-            '-' => TokenType::dash(input)?,
-            '*' => TokenType::star(input)?,
-            _ => TokenType::text(input)?,
+    pub fn from_source(source: &'a str, current_line: usize) -> Result<Self, TokenError> {
+        let c = source.chars().next().ok_or(TokenError::NoTokenMatch)?;
+        let token_type = TokenType::from_char(c, source)?;
+        let size = match token_type {
+            TokenType::Whitespace | TokenType::Text => token_type.size(Some(source))?,
+            _ => token_type.size(None)?,
         };
+        let lexeme = &source[..size.min(source.len())];
+        Ok(Token::new(token_type, lexeme, current_line))
+    }
 
-        Ok((
-            Self::new(token_type, &input[..size.min(input.len())], line),
-            size,
-            0,
-        ))
+    pub fn eof(line: usize) -> Self {
+        Token {
+            token_type: TokenType::Eof,
+            lexeme: "",
+            line,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        self.lexeme.chars().count()
+    }
+
+    pub fn lines(&self) -> usize {
+        match self.token_type {
+            TokenType::Whitespace => self
+                .lexeme
+                .chars()
+                .filter(|&c| c == '\n' || c == '\r')
+                .count(),
+            _ => 0,
+        }
+    }
+
+    pub fn is_throwaway(&self) -> bool {
+        matches!(self.token_type, TokenType::Whitespace)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct TokenStream<'a> {
+    tokens: Vec<Token<'a>>,
+}
+
+impl<'a> TokenStream<'a> {
+    pub fn new() -> Self {
+        TokenStream { tokens: Vec::new() }
+    }
+
+    pub fn add_token(&mut self, token: Token<'a>) {
+        self.tokens.push(token);
+    }
+
+    pub fn finalize(&mut self, last_line: usize) -> TokenStream<'a> {
+        let eof_token = Token::eof(last_line);
+        self.add_token(eof_token);
+        self.clone()
+    }
+}
+
+impl<'a> Default for TokenStream<'a> {
+    fn default() -> Self {
+        TokenStream::new()
+    }
+}
+
+impl<'a> AsRef<[Token<'a>]> for TokenStream<'a> {
+    fn as_ref(&self) -> &[Token<'a>] {
+        &self.tokens
+    }
+}
+
+impl<'a> Deref for TokenStream<'a> {
+    type Target = Vec<Token<'a>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.tokens
+    }
+}
+
+impl<'a> DerefMut for TokenStream<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.tokens
+    }
+}
+
+impl<'a> IntoIterator for TokenStream<'a> {
+    type Item = Token<'a>;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.tokens.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a TokenStream<'a> {
+    type Item = &'a Token<'a>;
+    type IntoIter = std::slice::Iter<'a, Token<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.tokens.iter()
     }
 }
 
@@ -362,82 +377,15 @@ impl<'a> Token<'a> {
 mod tests {
     use super::*;
 
-    fn assert_token_instance<F>(test_cases: Vec<(&str, TokenType)>, method: F)
-    where
-        F: Fn(&str) -> Result<(Token<'_>, usize, usize), TokenError>,
-    {
-        for (input, expected_token_type) in test_cases {
-            println!("Testing input: {:?}", input);
-
-            // Call the token-based method
-            match method(input) {
-                Ok((token, _size_consumed, _lines_consumed)) => {
-                    assert_eq!(token.token_type, expected_token_type, "Input: {}", input);
-                }
-                Err(e) => panic!(
-                    "Expected {:?}, but got Err({:?}) for input: {}",
-                    expected_token_type, e, input,
-                ),
-            }
-        }
-    }
-
-    #[test]
-    fn test_match_token() {
-        let test_cases = vec![
-            ("<", TokenType::LeftAngle),
-            (">", TokenType::RightAngle),
-            (",", TokenType::Comma),
-            (".", TokenType::Dot),
-            ("-", TokenType::Dash),
-            ("+", TokenType::Plus),
-            (":", TokenType::Colon),
-            ("/", TokenType::Slash),
-            ("!", TokenType::Bang),
-            ("=", TokenType::Equal),
-            ("|", TokenType::Pipe),
-            ("%", TokenType::Percent),
-            ("'", TokenType::SingleQuote),
-            ("\"", TokenType::DoubleQuote),
-            ("{{", TokenType::DoubleLeftBrace),
-            ("}}", TokenType::DoubleRightBrace),
-            ("{%", TokenType::LeftBracePercent),
-            ("%}", TokenType::PercentRightBrace),
-            ("{#", TokenType::LeftBraceHash),
-            ("#}", TokenType::HashRightBrace),
-            ("!=", TokenType::BangEqual),
-            ("==", TokenType::DoubleEqual),
-            ("<=", TokenType::LeftAngleEqual),
-            (">=", TokenType::RightAngleEqual),
-            ("<!--", TokenType::LeftAngleBangDashDash),
-            ("-->", TokenType::DashDashRightAngle),
-            ("/>", TokenType::SlashRightAngle),
-            ("//", TokenType::DoubleSlash),
-            ("/*", TokenType::SlashStar),
-            ("*/", TokenType::StarSlash),
-            (" ", TokenType::Whitespace),
-            ("\r", TokenType::Whitespace),
-            ("\t", TokenType::Whitespace),
-            ("\n", TokenType::Whitespace),
-            ("  ", TokenType::Whitespace),
-            (" \n", TokenType::Whitespace),
-            ("a", TokenType::Text),
-            ("1", TokenType::Text),
-            ("Hello", TokenType::Text),
-        ];
-
-        assert_token_instance(test_cases, |input| Token::from_input(input, 0));
-    }
-
     fn assert_token_type<F>(test_cases: Vec<(&str, TokenType)>, method: F)
     where
-        F: Fn(&str) -> Result<(TokenType, usize), TokenError>,
+        F: Fn(&str) -> Result<TokenType, TokenError>,
     {
         for (input, expected_token_type) in test_cases {
             println!("Testing input: {:?}", input);
 
             match method(input) {
-                Ok((token_type, _size_consumed)) => {
+                Ok(token_type) => {
                     assert_eq!(token_type, expected_token_type, "Input: {}", input);
                 }
                 Err(e) => panic!(
@@ -544,48 +492,344 @@ mod tests {
         assert_token_type(test_cases, TokenType::star);
     }
 
-    #[test]
-    fn test_text() {
-        let test_cases = vec![
-            ("a", TokenType::Text),
-            ("1", TokenType::Text),
-            ("Hello", TokenType::Text),
-        ];
-
-        assert_token_type(test_cases, TokenType::text);
-    }
-
-    fn assert_whitespace_token_type<F>(test_cases: Vec<(&str, usize)>, method: F)
+    fn assert_token_instance<F>(test_cases: Vec<(&str, Token)>, method: F)
     where
-        F: Fn(&str) -> Result<(TokenType, usize, usize), TokenError>,
+        F: Fn(&str) -> Result<Token, TokenError>,
     {
-        for (input, expected_lines) in test_cases {
+        for (input, expected_token) in test_cases {
             println!("Testing input: {:?}", input);
 
-            // Call the token matcher
             match method(input) {
-                Ok((token_type, _size_consumed, lines_consumed)) => {
-                    assert_eq!(token_type, TokenType::Whitespace, "Input: {}", input);
-                    assert_eq!(lines_consumed, expected_lines, "Input: {}", input);
+                Ok(token) => {
+                    assert_eq!(token, expected_token, "Input: {}", input);
                 }
                 Err(e) => panic!(
-                    "Expected Whitespace, but got Err({:?}) for input: {}",
-                    e, input
+                    "Expected {:?}, but got Err({:?}) for input: {}",
+                    expected_token, e, input,
                 ),
             }
         }
     }
+
     #[test]
-    fn test_whitespace_token_type() {
+    fn test_token_from_source() {
+        let line = 1;
+
         let test_cases = vec![
-            (" ", 0),
-            ("\n", 1),
-            ("\t", 0),
-            ("\r", 1),
-            (" \n", 1),
-            ("\r\n", 1),
+            (
+                "<",
+                Token {
+                    token_type: TokenType::LeftAngle,
+                    lexeme: "<",
+                    line,
+                },
+            ),
+            (
+                ">",
+                Token {
+                    token_type: TokenType::RightAngle,
+                    lexeme: ">",
+                    line,
+                },
+            ),
+            (
+                ",",
+                Token {
+                    token_type: TokenType::Comma,
+                    lexeme: ",",
+                    line,
+                },
+            ),
+            (
+                ".",
+                Token {
+                    token_type: TokenType::Dot,
+                    lexeme: ".",
+                    line,
+                },
+            ),
+            (
+                "-",
+                Token {
+                    token_type: TokenType::Dash,
+                    lexeme: "-",
+                    line,
+                },
+            ),
+            (
+                "+",
+                Token {
+                    token_type: TokenType::Plus,
+                    lexeme: "+",
+                    line,
+                },
+            ),
+            (
+                ":",
+                Token {
+                    token_type: TokenType::Colon,
+                    lexeme: ":",
+                    line,
+                },
+            ),
+            (
+                "/",
+                Token {
+                    token_type: TokenType::Slash,
+                    lexeme: "/",
+                    line,
+                },
+            ),
+            (
+                "!",
+                Token {
+                    token_type: TokenType::Bang,
+                    lexeme: "!",
+                    line,
+                },
+            ),
+            (
+                "=",
+                Token {
+                    token_type: TokenType::Equal,
+                    lexeme: "=",
+                    line,
+                },
+            ),
+            (
+                "|",
+                Token {
+                    token_type: TokenType::Pipe,
+                    lexeme: "|",
+                    line,
+                },
+            ),
+            (
+                "%",
+                Token {
+                    token_type: TokenType::Percent,
+                    lexeme: "%",
+                    line,
+                },
+            ),
+            (
+                "'",
+                Token {
+                    token_type: TokenType::SingleQuote,
+                    lexeme: "'",
+                    line,
+                },
+            ),
+            (
+                "\"",
+                Token {
+                    token_type: TokenType::DoubleQuote,
+                    lexeme: "\"",
+                    line,
+                },
+            ),
+            (
+                "{{",
+                Token {
+                    token_type: TokenType::DoubleLeftBrace,
+                    lexeme: "{{",
+                    line,
+                },
+            ),
+            (
+                "}}",
+                Token {
+                    token_type: TokenType::DoubleRightBrace,
+                    lexeme: "}}",
+                    line,
+                },
+            ),
+            (
+                "{%",
+                Token {
+                    token_type: TokenType::LeftBracePercent,
+                    lexeme: "{%",
+                    line,
+                },
+            ),
+            (
+                "%}",
+                Token {
+                    token_type: TokenType::PercentRightBrace,
+                    lexeme: "%}",
+                    line,
+                },
+            ),
+            (
+                "{#",
+                Token {
+                    token_type: TokenType::LeftBraceHash,
+                    lexeme: "{#",
+                    line,
+                },
+            ),
+            (
+                "#}",
+                Token {
+                    token_type: TokenType::HashRightBrace,
+                    lexeme: "#}",
+                    line,
+                },
+            ),
+            (
+                "!=",
+                Token {
+                    token_type: TokenType::BangEqual,
+                    lexeme: "!=",
+                    line,
+                },
+            ),
+            (
+                "==",
+                Token {
+                    token_type: TokenType::DoubleEqual,
+                    lexeme: "==",
+                    line,
+                },
+            ),
+            (
+                "<=",
+                Token {
+                    token_type: TokenType::LeftAngleEqual,
+                    lexeme: "<=",
+                    line,
+                },
+            ),
+            (
+                ">=",
+                Token {
+                    token_type: TokenType::RightAngleEqual,
+                    lexeme: ">=",
+                    line,
+                },
+            ),
+            (
+                "<!--",
+                Token {
+                    token_type: TokenType::LeftAngleBangDashDash,
+                    lexeme: "<!--",
+                    line,
+                },
+            ),
+            (
+                "-->",
+                Token {
+                    token_type: TokenType::DashDashRightAngle,
+                    lexeme: "-->",
+                    line,
+                },
+            ),
+            (
+                "/>",
+                Token {
+                    token_type: TokenType::SlashRightAngle,
+                    lexeme: "/>",
+                    line,
+                },
+            ),
+            (
+                "//",
+                Token {
+                    token_type: TokenType::DoubleSlash,
+                    lexeme: "//",
+                    line,
+                },
+            ),
+            (
+                "/*",
+                Token {
+                    token_type: TokenType::SlashStar,
+                    lexeme: "/*",
+                    line,
+                },
+            ),
+            (
+                "*/",
+                Token {
+                    token_type: TokenType::StarSlash,
+                    lexeme: "*/",
+                    line,
+                },
+            ),
+            (
+                " ",
+                Token {
+                    token_type: TokenType::Whitespace,
+                    lexeme: " ",
+                    line,
+                },
+            ),
+            (
+                "\r",
+                Token {
+                    token_type: TokenType::Whitespace,
+                    lexeme: "\r",
+                    line,
+                },
+            ),
+            (
+                "\t",
+                Token {
+                    token_type: TokenType::Whitespace,
+                    lexeme: "\t",
+                    line,
+                },
+            ),
+            (
+                "\n",
+                Token {
+                    token_type: TokenType::Whitespace,
+                    lexeme: "\n",
+                    line,
+                },
+            ),
+            (
+                "  ",
+                Token {
+                    token_type: TokenType::Whitespace,
+                    lexeme: "  ",
+                    line,
+                },
+            ),
+            (
+                " \n",
+                Token {
+                    token_type: TokenType::Whitespace,
+                    lexeme: " \n",
+                    line,
+                },
+            ),
+            (
+                "a",
+                Token {
+                    token_type: TokenType::Text,
+                    lexeme: "a",
+                    line,
+                },
+            ),
+            (
+                "line",
+                Token {
+                    token_type: TokenType::Text,
+                    lexeme: "line",
+                    line,
+                },
+            ),
+            (
+                "Hello",
+                Token {
+                    token_type: TokenType::Text,
+                    lexeme: "Hello",
+                    line,
+                },
+            ),
         ];
 
-        assert_whitespace_token_type(test_cases, TokenType::whitespace);
+        assert_token_instance(test_cases, |input| Token::from_source(input, line));
     }
 }

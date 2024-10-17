@@ -14,8 +14,16 @@ pub enum LexerError {
     AtEndOfSource,
     #[error("invalid character access")]
     InvalidCharacterAccess,
-    #[error(transparent)] // Display the inner TokenError directly
-    TokenError(#[from] TokenError), // This automatically implements From<TokenError>
+    #[error(transparent)]
+    ScannerError(#[from] ScannerError),
+    #[error(transparent)]
+    TokenError(#[from] TokenError),
+}
+
+#[derive(Error, Debug)]
+pub enum ScannerError {
+    #[error("attempted to get last line before reaching end of input")]
+    NotAtEnd,
 }
 
 #[derive(Error, Debug)]
@@ -26,4 +34,6 @@ pub enum TokenError {
     NoTokenMatch,
     #[error("unexpected end of input, expected string literal")]
     UnexpectedEndOfInput,
+    #[error("cannot call size, token type has dynamic size")]
+    DynamicTokenSize,
 }
