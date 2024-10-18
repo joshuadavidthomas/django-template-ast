@@ -161,8 +161,6 @@ impl TokenType {
             Self::DoubleSlash
         } else if s.starts_with("/*") {
             Self::SlashStar
-        } else if s.starts_with("*/") {
-            Self::StarSlash
         } else {
             Self::Slash
         };
