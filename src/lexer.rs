@@ -2,18 +2,19 @@ use crate::error::LexerError;
 use crate::scanner::{LexerState, Scanner};
 use crate::token::{Token, TokenStream};
 
-pub struct Lexer<'a> {
-    source: &'a str,
-    tokens: TokenStream<'a>,
+pub struct Lexer {
+    source: String,
+    tokens: TokenStream,
     state: LexerState,
 }
 
-impl<'a> Lexer<'a> {
-    pub fn new(source: &'a str) -> Self {
+impl Lexer {
+    pub fn new(source: &str) -> Self {
+        let length = source.len();
         Lexer {
-            source,
+            source: String::from(source),
             tokens: TokenStream::new(),
-            state: LexerState::new(source),
+            state: LexerState::new(length),
         }
     }
 
@@ -26,7 +27,7 @@ impl<'a> Lexer<'a> {
         Ok(tokens)
     }
 
-    fn next_token(&mut self) -> Result<Token<'a>, LexerError> {
+    fn next_token(&mut self) -> Result<Token, LexerError> {
         self.advance()?;
         let remaining_source = &self.source[self.state.current()..];
         let token = Token::from_source(remaining_source, self.state.current_line())?;
@@ -34,14 +35,14 @@ impl<'a> Lexer<'a> {
         Ok(token)
     }
 
-    fn add_token(&mut self, token: Token<'a>) {
+    fn add_token(&mut self, token: Token) {
         if !token.is_throwaway() {
             self.tokens.add_token(token);
         }
     }
 }
 
-impl<'a> Scanner for Lexer<'a> {
+impl Scanner for Lexer {
     type Item = char;
     type Error = LexerError;
 

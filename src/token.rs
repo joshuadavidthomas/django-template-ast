@@ -254,17 +254,17 @@ impl TokenType {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Token<'a> {
+pub struct Token {
     token_type: TokenType,
-    lexeme: &'a str,
+    lexeme: String,
     line: usize,
 }
 
-impl<'a> Token<'a> {
+impl<'a> Token {
     pub fn new(token_type: TokenType, lexeme: &'a str, line: usize) -> Self {
         Token {
             token_type,
-            lexeme,
+            lexeme: String::from(lexeme),
             line,
         }
     }
@@ -283,7 +283,7 @@ impl<'a> Token<'a> {
     pub fn eof(line: usize) -> Self {
         Token {
             token_type: TokenType::Eof,
-            lexeme: "",
+            lexeme: "".to_string(),
             line,
         }
     }
@@ -309,54 +309,54 @@ impl<'a> Token<'a> {
 }
 
 #[derive(Clone, Debug)]
-pub struct TokenStream<'a> {
-    tokens: Vec<Token<'a>>,
+pub struct TokenStream {
+    tokens: Vec<Token>,
 }
 
-impl<'a> TokenStream<'a> {
+impl TokenStream {
     pub fn new() -> Self {
         TokenStream { tokens: Vec::new() }
     }
 
-    pub fn add_token(&mut self, token: Token<'a>) {
+    pub fn add_token(&mut self, token: Token) {
         self.tokens.push(token);
     }
 
-    pub fn finalize(&mut self, last_line: usize) -> TokenStream<'a> {
+    pub fn finalize(&mut self, last_line: usize) -> TokenStream {
         let eof_token = Token::eof(last_line);
         self.add_token(eof_token);
         self.clone()
     }
 }
 
-impl<'a> Default for TokenStream<'a> {
+impl Default for TokenStream {
     fn default() -> Self {
         TokenStream::new()
     }
 }
 
-impl<'a> AsRef<[Token<'a>]> for TokenStream<'a> {
-    fn as_ref(&self) -> &[Token<'a>] {
+impl AsRef<[Token]> for TokenStream {
+    fn as_ref(&self) -> &[Token] {
         &self.tokens
     }
 }
 
-impl<'a> Deref for TokenStream<'a> {
-    type Target = Vec<Token<'a>>;
+impl Deref for TokenStream {
+    type Target = Vec<Token>;
 
     fn deref(&self) -> &Self::Target {
         &self.tokens
     }
 }
 
-impl<'a> DerefMut for TokenStream<'a> {
+impl DerefMut for TokenStream {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.tokens
     }
 }
 
-impl<'a> IntoIterator for TokenStream<'a> {
-    type Item = Token<'a>;
+impl IntoIterator for TokenStream {
+    type Item = Token;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -364,9 +364,9 @@ impl<'a> IntoIterator for TokenStream<'a> {
     }
 }
 
-impl<'a> IntoIterator for &'a TokenStream<'a> {
-    type Item = &'a Token<'a>;
-    type IntoIter = std::slice::Iter<'a, Token<'a>>;
+impl<'a> IntoIterator for &'a TokenStream {
+    type Item = &'a Token;
+    type IntoIter = std::slice::Iter<'a, Token>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.tokens.iter()
@@ -520,7 +520,7 @@ mod tests {
                 "<",
                 Token {
                     token_type: TokenType::LeftAngle,
-                    lexeme: "<",
+                    lexeme: "<".to_string(),
                     line,
                 },
             ),
@@ -528,7 +528,7 @@ mod tests {
                 ">",
                 Token {
                     token_type: TokenType::RightAngle,
-                    lexeme: ">",
+                    lexeme: ">".to_string(),
                     line,
                 },
             ),
@@ -536,7 +536,7 @@ mod tests {
                 ",",
                 Token {
                     token_type: TokenType::Comma,
-                    lexeme: ",",
+                    lexeme: ",".to_string(),
                     line,
                 },
             ),
@@ -544,7 +544,7 @@ mod tests {
                 ".",
                 Token {
                     token_type: TokenType::Dot,
-                    lexeme: ".",
+                    lexeme: ".".to_string(),
                     line,
                 },
             ),
@@ -552,7 +552,7 @@ mod tests {
                 "-",
                 Token {
                     token_type: TokenType::Dash,
-                    lexeme: "-",
+                    lexeme: "-".to_string(),
                     line,
                 },
             ),
@@ -560,7 +560,7 @@ mod tests {
                 "+",
                 Token {
                     token_type: TokenType::Plus,
-                    lexeme: "+",
+                    lexeme: "+".to_string(),
                     line,
                 },
             ),
@@ -568,7 +568,7 @@ mod tests {
                 ":",
                 Token {
                     token_type: TokenType::Colon,
-                    lexeme: ":",
+                    lexeme: ":".to_string(),
                     line,
                 },
             ),
@@ -576,7 +576,7 @@ mod tests {
                 "/",
                 Token {
                     token_type: TokenType::Slash,
-                    lexeme: "/",
+                    lexeme: "/".to_string(),
                     line,
                 },
             ),
@@ -584,7 +584,7 @@ mod tests {
                 "!",
                 Token {
                     token_type: TokenType::Bang,
-                    lexeme: "!",
+                    lexeme: "!".to_string(),
                     line,
                 },
             ),
@@ -592,7 +592,7 @@ mod tests {
                 "=",
                 Token {
                     token_type: TokenType::Equal,
-                    lexeme: "=",
+                    lexeme: "=".to_string(),
                     line,
                 },
             ),
@@ -600,7 +600,7 @@ mod tests {
                 "|",
                 Token {
                     token_type: TokenType::Pipe,
-                    lexeme: "|",
+                    lexeme: "|".to_string(),
                     line,
                 },
             ),
@@ -608,7 +608,7 @@ mod tests {
                 "%",
                 Token {
                     token_type: TokenType::Percent,
-                    lexeme: "%",
+                    lexeme: "%".to_string(),
                     line,
                 },
             ),
@@ -616,7 +616,7 @@ mod tests {
                 "'",
                 Token {
                     token_type: TokenType::SingleQuote,
-                    lexeme: "'",
+                    lexeme: "'".to_string(),
                     line,
                 },
             ),
@@ -624,7 +624,7 @@ mod tests {
                 "\"",
                 Token {
                     token_type: TokenType::DoubleQuote,
-                    lexeme: "\"",
+                    lexeme: "\"".to_string(),
                     line,
                 },
             ),
@@ -632,7 +632,7 @@ mod tests {
                 "{{",
                 Token {
                     token_type: TokenType::DoubleLeftBrace,
-                    lexeme: "{{",
+                    lexeme: "{{".to_string(),
                     line,
                 },
             ),
@@ -640,7 +640,7 @@ mod tests {
                 "}}",
                 Token {
                     token_type: TokenType::DoubleRightBrace,
-                    lexeme: "}}",
+                    lexeme: "}}".to_string(),
                     line,
                 },
             ),
@@ -648,7 +648,7 @@ mod tests {
                 "{%",
                 Token {
                     token_type: TokenType::LeftBracePercent,
-                    lexeme: "{%",
+                    lexeme: "{%".to_string(),
                     line,
                 },
             ),
@@ -656,7 +656,7 @@ mod tests {
                 "%}",
                 Token {
                     token_type: TokenType::PercentRightBrace,
-                    lexeme: "%}",
+                    lexeme: "%}".to_string(),
                     line,
                 },
             ),
@@ -664,7 +664,7 @@ mod tests {
                 "{#",
                 Token {
                     token_type: TokenType::LeftBraceHash,
-                    lexeme: "{#",
+                    lexeme: "{#".to_string(),
                     line,
                 },
             ),
@@ -672,7 +672,7 @@ mod tests {
                 "#}",
                 Token {
                     token_type: TokenType::HashRightBrace,
-                    lexeme: "#}",
+                    lexeme: "#}".to_string(),
                     line,
                 },
             ),
@@ -680,7 +680,7 @@ mod tests {
                 "!=",
                 Token {
                     token_type: TokenType::BangEqual,
-                    lexeme: "!=",
+                    lexeme: "!=".to_string(),
                     line,
                 },
             ),
@@ -688,7 +688,7 @@ mod tests {
                 "==",
                 Token {
                     token_type: TokenType::DoubleEqual,
-                    lexeme: "==",
+                    lexeme: "==".to_string(),
                     line,
                 },
             ),
@@ -696,7 +696,7 @@ mod tests {
                 "<=",
                 Token {
                     token_type: TokenType::LeftAngleEqual,
-                    lexeme: "<=",
+                    lexeme: "<=".to_string(),
                     line,
                 },
             ),
@@ -704,7 +704,7 @@ mod tests {
                 ">=",
                 Token {
                     token_type: TokenType::RightAngleEqual,
-                    lexeme: ">=",
+                    lexeme: ">=".to_string(),
                     line,
                 },
             ),
@@ -712,7 +712,7 @@ mod tests {
                 "<!--",
                 Token {
                     token_type: TokenType::LeftAngleBangDashDash,
-                    lexeme: "<!--",
+                    lexeme: "<!--".to_string(),
                     line,
                 },
             ),
@@ -720,7 +720,7 @@ mod tests {
                 "-->",
                 Token {
                     token_type: TokenType::DashDashRightAngle,
-                    lexeme: "-->",
+                    lexeme: "-->".to_string(),
                     line,
                 },
             ),
@@ -728,7 +728,7 @@ mod tests {
                 "/>",
                 Token {
                     token_type: TokenType::SlashRightAngle,
-                    lexeme: "/>",
+                    lexeme: "/>".to_string(),
                     line,
                 },
             ),
@@ -736,7 +736,7 @@ mod tests {
                 "//",
                 Token {
                     token_type: TokenType::DoubleSlash,
-                    lexeme: "//",
+                    lexeme: "//".to_string(),
                     line,
                 },
             ),
@@ -744,7 +744,7 @@ mod tests {
                 "/*",
                 Token {
                     token_type: TokenType::SlashStar,
-                    lexeme: "/*",
+                    lexeme: "/*".to_string(),
                     line,
                 },
             ),
@@ -752,7 +752,7 @@ mod tests {
                 "*/",
                 Token {
                     token_type: TokenType::StarSlash,
-                    lexeme: "*/",
+                    lexeme: "*/".to_string(),
                     line,
                 },
             ),
@@ -760,7 +760,7 @@ mod tests {
                 " ",
                 Token {
                     token_type: TokenType::Whitespace,
-                    lexeme: " ",
+                    lexeme: " ".to_string(),
                     line,
                 },
             ),
@@ -768,7 +768,7 @@ mod tests {
                 "\r",
                 Token {
                     token_type: TokenType::Whitespace,
-                    lexeme: "\r",
+                    lexeme: "\r".to_string(),
                     line,
                 },
             ),
@@ -776,7 +776,7 @@ mod tests {
                 "\t",
                 Token {
                     token_type: TokenType::Whitespace,
-                    lexeme: "\t",
+                    lexeme: "\t".to_string(),
                     line,
                 },
             ),
@@ -784,7 +784,7 @@ mod tests {
                 "\n",
                 Token {
                     token_type: TokenType::Whitespace,
-                    lexeme: "\n",
+                    lexeme: "\n".to_string(),
                     line,
                 },
             ),
@@ -792,7 +792,7 @@ mod tests {
                 "  ",
                 Token {
                     token_type: TokenType::Whitespace,
-                    lexeme: "  ",
+                    lexeme: "  ".to_string(),
                     line,
                 },
             ),
@@ -800,7 +800,7 @@ mod tests {
                 " \n",
                 Token {
                     token_type: TokenType::Whitespace,
-                    lexeme: " \n",
+                    lexeme: " \n".to_string(),
                     line,
                 },
             ),
@@ -808,7 +808,7 @@ mod tests {
                 "a",
                 Token {
                     token_type: TokenType::Text,
-                    lexeme: "a",
+                    lexeme: "a".to_string(),
                     line,
                 },
             ),
@@ -816,7 +816,7 @@ mod tests {
                 "line",
                 Token {
                     token_type: TokenType::Text,
-                    lexeme: "line",
+                    lexeme: "line".to_string(),
                     line,
                 },
             ),
@@ -824,7 +824,7 @@ mod tests {
                 "Hello",
                 Token {
                     token_type: TokenType::Text,
-                    lexeme: "Hello",
+                    lexeme: "Hello".to_string(),
                     line,
                 },
             ),

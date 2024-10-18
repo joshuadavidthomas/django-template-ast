@@ -9,13 +9,13 @@ pub struct LexerState {
     length: usize,
 }
 
-impl<'a> LexerState {
-    pub fn new(source: &'a str) -> Self {
+impl LexerState {
+    pub fn new(length: usize) -> Self {
         LexerState {
             start: 0,
             current: 0,
             line: 1,
-            length: source.len(),
+            length,
         }
     }
 
