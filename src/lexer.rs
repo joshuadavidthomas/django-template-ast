@@ -1,20 +1,23 @@
 use crate::error::LexerError;
-use crate::scanner::{LexerState, Scanner};
+use crate::scanner::Scanner;
 use crate::token::{Token, TokenStream};
 
 pub struct Lexer {
     source: String,
     tokens: TokenStream,
-    state: LexerState,
+    start: usize,
+    current: usize,
+    line: usize,
 }
 
 impl Lexer {
     pub fn new(source: &str) -> Self {
-        let length = source.len();
         Lexer {
             source: String::from(source),
             tokens: TokenStream::new(),
-            state: LexerState::new(length),
+            start: 0,
+            current: 0,
+            line: 1,
         }
     }
 
@@ -23,15 +26,16 @@ impl Lexer {
             let token = self.next_token()?;
             self.add_token(token);
         }
-        let tokens = self.tokens.finalize(self.state.last_line()?);
+        let tokens = self.tokens.finalize(self.line);
         Ok(tokens)
     }
 
     fn next_token(&mut self) -> Result<Token, LexerError> {
         self.advance()?;
-        let remaining_source = &self.source[self.state.current()..];
-        let token = Token::from_source(remaining_source, self.state.current_line())?;
-        self.state.advance(token.size(), token.lines());
+        let remaining_source = &self.source[self.current..];
+        let token = Token::from_source(remaining_source, self.line)?;
+        self.current += token.size();
+        self.line += token.lines();
         Ok(token)
     }
 
@@ -47,22 +51,22 @@ impl Scanner for Lexer {
     type Error = LexerError;
 
     fn advance(&mut self) -> Result<Self::Item, Self::Error> {
-        self.state.prepare();
+        self.start = self.current;
         let current_char = self.peek()?;
-        self.state.advance(1, 0);
+        self.current += 1;
         Ok(current_char)
     }
 
     fn peek(&self) -> Result<Self::Item, Self::Error> {
-        self.item_at(self.state.current())
+        self.item_at(self.current)
     }
 
     fn peek_next(&self) -> Result<Self::Item, Self::Error> {
-        self.item_at(self.state.next())
+        self.item_at(self.current + 1)
     }
 
     fn peek_previous(&self) -> Result<Self::Item, Self::Error> {
-        self.item_at(self.state.previous())
+        self.item_at(self.current - 1)
     }
 
     fn item_at(&self, index: usize) -> Result<Self::Item, Self::Error> {
@@ -71,9 +75,9 @@ impl Scanner for Lexer {
         } else {
             let error = if self.source.is_empty() {
                 LexerError::EmptySource
-            } else if index < self.state.current() {
+            } else if index < self.current {
                 LexerError::AtBeginningOfSource
-            } else if index >= self.state.length() {
+            } else if index >= self.source.len() {
                 LexerError::AtEndOfSource
             } else {
                 LexerError::InvalidCharacterAccess
@@ -83,6 +87,6 @@ impl Scanner for Lexer {
     }
 
     fn is_at_end(&self) -> bool {
-        self.state.is_at_end()
+        self.current >= self.source.len()
     }
 }
