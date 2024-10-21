@@ -138,17 +138,13 @@ impl Node {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct AST {
+pub struct Ast {
     pub nodes: Vec<Node>,
 }
 
-impl AST {
+impl Ast {
     pub fn new() -> Self {
-        AST { nodes: Vec::new() }
-    }
-
-    pub fn match_node(&self, token: Token) -> Result<(), ASTError> {
-        Ok(())
+        Ast { nodes: Vec::new() }
     }
 
     pub fn add_node(&mut self, node: Node) {

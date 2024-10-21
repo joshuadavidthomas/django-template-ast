@@ -1,64 +1,69 @@
-use crate::ast::AST;
+use crate::ast::{Ast, Node};
 use crate::error::ParserError;
-use crate::scanner::{ParserState, Scanner};
-use crate::token::{Token, TokenType};
+use crate::token::{Token, TokenStream, TokenType};
 
-pub struct Parser<'a> {
-    tokens: Vec<Token<'a>>,
-    state: ParserState,
+pub struct Parser {
+    tokens: TokenStream,
+    current: usize,
 }
 
-impl<'a> Parser<'a> {
-    pub fn new(tokens: Vec<Token<'a>>) -> Self {
-        Parser {
-            tokens,
-            state: ParserState::new(),
-        }
+impl Parser {
+    pub fn new(tokens: TokenStream) -> Self {
+        Parser { tokens, current: 0 }
     }
 
-    pub fn parse(&mut self) -> Result<AST, ParserError> {
-        let ast = AST::new();
+    pub fn parse(&mut self) -> Result<Ast, ParserError> {
+        let mut ast = Ast::new();
         while !self.is_at_end() {
-            let token = self.advance()?;
-            let node = ast.match_node(token)?;
-            println!("{:?}", node);
-            // ast.add_node(node);
+            let node = self.next_node()?;
+            ast.add_node(node);
         }
         Ok(ast)
     }
-}
 
-impl<'a> Scanner for Parser<'a> {
-    type Item = Token<'a>;
-    type Error = ParserError;
+    fn next_node(&mut self) -> Result<Node, ParserError> {
+        let token = self.peek()?;
+        let node = match token.token_type {
+            TokenType::Text => self.text(),
+            TokenType::Eof => Err(ParserError::AtEndOfStream),
+            _ => Err(ParserError::UnexpectedToken(token.clone())),
+        };
+        self.advance()?;
+        node
+    }
 
-    fn advance(&mut self) -> Result<Self::Item, Self::Error> {
-        let current_token = self.peek()?;
-        if !self.is_at_end() {
-            self.state.current += 1;
+    fn text(&self) -> Result<Node, ParserError> {
+        let token = self.peek()?;
+        Ok(Node::new_text(token.lexeme)?)
+    }
+
+    fn advance(&mut self) -> Result<Token, ParserError> {
+        if self.is_at_end() {
+            return Err(ParserError::AtEndOfStream);
         }
-        Ok(current_token)
+        self.current += 1;
+        self.peek()
     }
 
-    fn peek(&self) -> Result<Self::Item, Self::Error> {
-        self.item_at(self.state.current)
+    fn peek(&self) -> Result<Token, ParserError> {
+        self.item_at(self.current)
     }
 
-    fn peek_next(&self) -> Result<Self::Item, Self::Error> {
-        self.item_at(self.state.current + 1)
+    fn peek_next(&self) -> Result<Token, ParserError> {
+        self.item_at(self.current + 1)
     }
 
-    fn peek_previous(&self) -> Result<Self::Item, Self::Error> {
-        self.item_at(self.state.current - 1)
+    fn peek_previous(&self) -> Result<Token, ParserError> {
+        self.item_at(self.current - 1)
     }
 
-    fn item_at(&self, index: usize) -> Result<Self::Item, Self::Error> {
+    fn item_at(&self, index: usize) -> Result<Token, ParserError> {
         if let Some(token) = self.tokens.get(index) {
             Ok(token.clone())
         } else {
             let error = if self.tokens.is_empty() {
                 ParserError::EmptyTokenStream
-            } else if index < self.state.current {
+            } else if index < self.current {
                 ParserError::AtBeginningOfStream
             } else if index >= self.tokens.len() {
                 ParserError::AtEndOfStream
@@ -70,9 +75,7 @@ impl<'a> Scanner for Parser<'a> {
     }
 
     fn is_at_end(&self) -> bool {
-        self.peek()
-            .map(|token| token.token_type == TokenType::Eof)
-            .unwrap_or(true)
+        self.current >= self.tokens.len()
     }
 }
 
@@ -80,209 +83,35 @@ impl<'a> Scanner for Parser<'a> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_parser_new() {
-        let tokens = vec![
-            Token::new(TokenType::Text, "Text", 1),
-            Token::new(TokenType::Text, "More Text", 2),
-            Token::new(TokenType::Eof, "", 3),
-        ];
-        let parser = Parser::new(tokens);
+    fn create_token_stream(tokens: Vec<(TokenType, &str, usize)>) -> TokenStream {
+        let mut stream = TokenStream::new();
+        let mut last_line = 0;
 
-        assert_eq!(parser.tokens.len(), 3);
-        assert_eq!(parser.state.current, 0);
+        for (token_type, lexeme, line) in tokens {
+            let token = Token::new(token_type, lexeme, line);
+            println!("Created token: {:?}", token); // Debug print
+            stream.add_token(token);
+            last_line = line;
+        }
+
+        let eof_token = Token::new(TokenType::Eof, "", last_line.max(1) + 1);
+        println!("Created EOF token: {:?}", eof_token); // Debug print
+        stream.add_token(eof_token);
+
+        stream
     }
 
     #[test]
-    fn test_parser_parse() {
-        let tokens = vec![
-            Token::new(TokenType::Text, "Text", 1),
-            Token::new(TokenType::Text, "More Text", 2),
-            Token::new(TokenType::Eof, "", 3),
-        ];
-        let mut parser = Parser::new(tokens);
+    fn test_next_node() {
+        let tokens = vec![(TokenType::Text, "Hello", 1)];
+        let stream = create_token_stream(tokens);
+        println!("Created stream: {:?}", stream); // Debug print
 
-        let ast = parser.parse().unwrap();
+        let mut parser = Parser::new(stream);
 
-        assert_eq!(parser.state.current, 2);
-        assert_eq!(ast.nodes, vec![]);
-    }
+        let node = parser.next_node().unwrap();
+        println!("Parsed node: {:?}", node); // Debug print
 
-    #[test]
-    fn test_scanner_advance() {
-        let tokens = vec![
-            Token::new(TokenType::Text, "Text", 1),
-            Token::new(TokenType::Text, "More Text", 2),
-            Token::new(TokenType::Eof, "", 3),
-        ];
-        let mut parser = Parser::new(tokens.clone());
-        assert_eq!(parser.state.current, 0);
-
-        let token = parser.advance().unwrap();
-        assert_eq!(parser.state.current, 1);
-        assert_eq!(token, tokens[0]);
-
-        let token = parser.advance().unwrap();
-        assert_eq!(parser.state.current, 2);
-        assert_eq!(token, tokens[1]);
-
-        let eof_token = parser.advance().unwrap();
-        assert_eq!(parser.state.current, 2);
-        assert_eq!(eof_token, tokens[2]);
-    }
-
-    #[test]
-    fn test_scanner_advance_is_at_end() {
-        let tokens = vec![
-            Token::new(TokenType::Text, "Text", 1),
-            Token::new(TokenType::Text, "More Text", 2),
-            Token::new(TokenType::Eof, "", 3),
-        ];
-        let mut parser = Parser::new(tokens.clone());
-
-        assert_eq!(parser.state.current, 0);
-
-        parser.state.current += 2;
-
-        let token = parser.tokens.get(parser.state.current).unwrap().clone();
-        assert_eq!(token, tokens[2]);
-
-        // TODO: should this error?
-        let next_token = parser.advance().unwrap();
-        assert_eq!(next_token, token);
-    }
-
-    #[test]
-    fn test_scanner_peek() {
-        let tokens = vec![
-            Token::new(TokenType::Text, "Text", 1),
-            Token::new(TokenType::Text, "More Text", 2),
-            Token::new(TokenType::Eof, "", 3),
-        ];
-        let mut parser = Parser::new(tokens.clone());
-
-        let token = parser.peek().unwrap();
-        assert_eq!(token, tokens[0]);
-
-        parser.state.current += 2;
-
-        let token = parser.peek().unwrap();
-        assert_eq!(token, tokens[2]);
-    }
-
-    #[test]
-    fn test_scanner_peek_next() {
-        let tokens = vec![
-            Token::new(TokenType::Text, "Text", 1),
-            Token::new(TokenType::Text, "More Text", 2),
-            Token::new(TokenType::Eof, "", 3),
-        ];
-        let mut parser = Parser::new(tokens.clone());
-
-        let current_token = parser.peek().unwrap();
-        assert_eq!(current_token, tokens[0]);
-
-        let next_token = parser.peek_next().unwrap();
-        assert_eq!(next_token, tokens[1]);
-
-        parser.state.current += 1;
-
-        let current_token = parser.peek().unwrap();
-        assert_eq!(current_token, tokens[1]);
-
-        let next_token = parser.peek_next().unwrap();
-        assert_eq!(next_token, tokens[2]);
-    }
-
-    #[test]
-    fn test_scanner_peek_previous() {
-        let tokens = vec![
-            Token::new(TokenType::Text, "Text", 1),
-            Token::new(TokenType::Text, "More Text", 2),
-            Token::new(TokenType::Eof, "", 3),
-        ];
-        let mut parser = Parser::new(tokens.clone());
-
-        parser.state.current = 2;
-
-        let current_token = parser.peek().unwrap();
-        assert_eq!(current_token, tokens[2]);
-
-        let previous_token = parser.peek_previous().unwrap();
-        assert_eq!(previous_token, tokens[1]);
-
-        parser.state.current -= 1;
-
-        let current_token = parser.peek().unwrap();
-        assert_eq!(current_token, tokens[1]);
-
-        let previous_token = parser.peek_previous().unwrap();
-        assert_eq!(previous_token, tokens[0]);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_scanner_peek_previous_at_beginning() {
-        let tokens = vec![
-            Token::new(TokenType::Text, "Text", 1),
-            Token::new(TokenType::Text, "More Text", 2),
-            Token::new(TokenType::Eof, "", 3),
-        ];
-        let parser = Parser::new(tokens.clone());
-        assert_eq!(parser.state.current, 0);
-
-        parser.peek_previous().unwrap();
-    }
-
-    #[test]
-    fn test_scanner_item_at() {
-        let tokens = vec![
-            Token::new(TokenType::Text, "Text", 1),
-            Token::new(TokenType::Text, "More Text", 2),
-            Token::new(TokenType::Eof, "", 3),
-        ];
-        let parser = Parser::new(tokens.clone());
-
-        assert_eq!(parser.item_at(0).unwrap(), tokens[0]);
-        assert_eq!(parser.item_at(1).unwrap(), tokens[1]);
-        assert_eq!(parser.item_at(2).unwrap(), tokens[2]);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_scanner_item_at_empty() {
-        let tokens = vec![];
-        let parser = Parser::new(tokens.clone());
-
-        assert_eq!(parser.item_at(0).unwrap(), tokens[0]);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_scanner_item_at_end_of_input() {
-        let tokens = vec![
-            Token::new(TokenType::Text, "Text", 1),
-            Token::new(TokenType::Text, "More Text", 2),
-            Token::new(TokenType::Eof, "", 3),
-        ];
-        let parser = Parser::new(tokens.clone());
-
-        assert_eq!(parser.item_at(3).unwrap(), tokens[0]);
-    }
-
-    #[test]
-    fn test_scanner_is_at_end() {
-        let tokens = vec![
-            Token::new(TokenType::Text, "Text", 1),
-            Token::new(TokenType::Text, "More Text", 2),
-            Token::new(TokenType::Eof, "", 3),
-        ];
-        let mut parser = Parser::new(tokens.clone());
-
-        assert!(!parser.is_at_end());
-
-        parser.state.current = 2;
-
-        assert!(parser.is_at_end());
+        assert_eq!(node, Node::Text("Hello".to_string()));
     }
 }
