@@ -240,7 +240,6 @@ impl Lexer {
     }
 
     fn item_at(&self, index: usize) -> Result<char, LexerError> {
-        println!("index: {}", index);
         if index >= self.source.len() {
             // Return a null character when past the end, a bit of a departure from
             // idiomatic Rust code, but makes writing the matching above and testing
