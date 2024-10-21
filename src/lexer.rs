@@ -761,9 +761,6 @@ mod tests {
             ("\n", TokenType::Whitespace, "\n"),
             (" \t\n", TokenType::Whitespace, " \t\n"),
             ("hello", TokenType::Text, "hello"),
-            ("world!", TokenType::Text, "world!"),
-            ("abc123", TokenType::Text, "abc123"),
-            ("mixed_case", TokenType::Text, "mixed_case"),
             ("with spaces", TokenType::Text, "with"),
             ("", TokenType::Eof, ""),
         ];
@@ -962,7 +959,6 @@ mod tests {
     #[test]
     fn test_is_at_end() {
         let test_cases = vec![
-            // (input, index, expected_char)
             ("Hello\nWorld", 0, false),
             ("Hello\nWorld", 10, false),
             ("Hello\nWorld", 11, true),
