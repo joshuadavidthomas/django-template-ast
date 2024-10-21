@@ -18,7 +18,6 @@ fn test_simple_template() {
 }
 
 #[test]
-#[should_panic]
 fn test_invalid_template() {
     let result = compile("{% invalid %}");
     assert!(result.is_err());

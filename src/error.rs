@@ -1,5 +1,8 @@
-use crate::token::TokenType;
+use crate::token::{Token, TokenType};
 use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum AstError {}
 
 #[derive(Error, Debug)]
 pub enum LexerError {
@@ -18,27 +21,7 @@ pub enum LexerError {
     #[error("unexpected token type '{0:?}'")]
     UnexpectedTokenType(TokenType),
     #[error(transparent)]
-    ScannerError(#[from] ScannerError),
-    #[error(transparent)]
     TokenError(#[from] TokenError),
-}
-
-#[derive(Error, Debug)]
-pub enum ScannerError {
-    #[error("attempted to get last line before reaching end of input")]
-    NotAtEnd,
-}
-
-#[derive(Error, Debug)]
-pub enum TokenError {
-    #[error("unexpected character '{character}'")]
-    UnexpectedCharacter { character: char },
-    #[error("string did not match a token")]
-    NoTokenMatch,
-    #[error("unexpected end of input, expected string literal")]
-    UnexpectedEndOfInput,
-    #[error("cannot call size, token type has dynamic size")]
-    DynamicTokenSize,
 }
 
 #[derive(Error, Debug)]
@@ -59,9 +42,22 @@ pub enum ParserError {
     AtEndOfStream,
     #[error("Invalid token access")]
     InvalidTokenAccess,
-    #[error("AST error: {0}")]
-    ASTError(#[from] ASTError),
+    #[error("unexpected token '{0:?}'")]
+    UnexpectedToken(Token),
+    #[error(transparent)]
+    AstError(#[from] AstError),
+    #[error(transparent)]
+    NodeError(#[from] NodeError),
 }
 
 #[derive(Error, Debug)]
-pub enum ASTError {}
+pub enum TokenError {
+    #[error("unexpected character '{character}'")]
+    UnexpectedCharacter { character: char },
+    #[error("string did not match a token")]
+    NoTokenMatch,
+    #[error("unexpected end of input, expected string literal")]
+    UnexpectedEndOfInput,
+    #[error("cannot call size, token type has dynamic size")]
+    DynamicTokenSize,
+}

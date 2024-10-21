@@ -1,4 +1,4 @@
-use crate::error::{ASTError, NodeError};
+use crate::error::{AstError, NodeError};
 use crate::token::Token;
 
 #[derive(Debug, PartialEq)]
