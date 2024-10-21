@@ -1,3 +1,4 @@
+use crate::token::TokenType;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -14,6 +15,8 @@ pub enum LexerError {
     AtEndOfSource,
     #[error("invalid character access")]
     InvalidCharacterAccess,
+    #[error("unexpected token type '{0:?}'")]
+    UnexpectedTokenType(TokenType),
     #[error(transparent)]
     ScannerError(#[from] ScannerError),
     #[error(transparent)]

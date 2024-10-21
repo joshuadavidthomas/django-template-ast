@@ -182,49 +182,24 @@ impl Lexer {
 
     fn extract_lexeme(&self, token_type: TokenType) -> Result<&str, LexerError> {
         let remaining_source = &self.source[self.current..];
-        let size = match token_type {
-            TokenType::Eof => 0,
-            TokenType::LeftAngle
-            | TokenType::RightAngle
-            | TokenType::Comma
-            | TokenType::Dot
-            | TokenType::Dash
-            | TokenType::Plus
-            | TokenType::Colon
-            | TokenType::Slash
-            | TokenType::Bang
-            | TokenType::Equal
-            | TokenType::Pipe
-            | TokenType::Percent
-            | TokenType::SingleQuote
-            | TokenType::DoubleQuote => 1,
-            TokenType::DoubleLeftBrace
-            | TokenType::DoubleRightBrace
-            | TokenType::LeftBracePercent
-            | TokenType::PercentRightBrace
-            | TokenType::LeftBraceHash
-            | TokenType::HashRightBrace
-            | TokenType::BangEqual
-            | TokenType::DoubleEqual
-            | TokenType::LeftAngleEqual
-            | TokenType::RightAngleEqual
-            | TokenType::SlashRightAngle
-            | TokenType::DoubleSlash
-            | TokenType::SlashStar
-            | TokenType::StarSlash => 2,
-            TokenType::DashDashRightAngle => 3,
-            TokenType::LeftAngleBangDashDash => 4,
-            TokenType::Whitespace => remaining_source
-                .chars()
-                .take_while(|&c| c.is_whitespace())
-                .map(|c| c.len_utf8())
-                .sum(),
-            TokenType::Text => remaining_source
-                .chars()
-                .take_while(|&c| !c.is_whitespace() && c != '\0')
-                .map(|c| c.len_utf8())
-                .sum(),
+
+        let size = match token_type.size() {
+            Ok(size) => size,
+            _ => match token_type {
+                TokenType::Whitespace => remaining_source
+                    .chars()
+                    .take_while(|&c| c.is_whitespace() && c != '\0')
+                    .map(|c| c.len_utf8())
+                    .sum(),
+                TokenType::Text => remaining_source
+                    .chars()
+                    .take_while(|&c| !c.is_whitespace() && c != '\0')
+                    .map(|c| c.len_utf8())
+                    .sum(),
+                _ => return Err(LexerError::UnexpectedTokenType(token_type)),
+            },
         };
+
         let end = size.min(remaining_source.len());
         let result = &remaining_source[..end];
         Ok(result)

@@ -39,6 +39,46 @@ pub enum TokenType {
     Eof,
 }
 
+impl TokenType {
+    pub fn size(self) -> Result<usize, TokenError> {
+        let size = match self {
+            TokenType::Eof => 0,
+            TokenType::LeftAngle
+            | TokenType::RightAngle
+            | TokenType::Comma
+            | TokenType::Dot
+            | TokenType::Dash
+            | TokenType::Plus
+            | TokenType::Colon
+            | TokenType::Slash
+            | TokenType::Bang
+            | TokenType::Equal
+            | TokenType::Pipe
+            | TokenType::Percent
+            | TokenType::SingleQuote
+            | TokenType::DoubleQuote => 1,
+            TokenType::DoubleLeftBrace
+            | TokenType::DoubleRightBrace
+            | TokenType::LeftBracePercent
+            | TokenType::PercentRightBrace
+            | TokenType::LeftBraceHash
+            | TokenType::HashRightBrace
+            | TokenType::BangEqual
+            | TokenType::DoubleEqual
+            | TokenType::LeftAngleEqual
+            | TokenType::RightAngleEqual
+            | TokenType::SlashRightAngle
+            | TokenType::DoubleSlash
+            | TokenType::SlashStar
+            | TokenType::StarSlash => 2,
+            TokenType::DashDashRightAngle => 3,
+            TokenType::LeftAngleBangDashDash => 4,
+            _ => return Err(TokenError::DynamicTokenSize),
+        };
+        Ok(size)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Token {
     pub token_type: TokenType,
