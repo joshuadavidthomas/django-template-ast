@@ -1,6 +1,8 @@
 use crate::error::TokenError;
+use std::fmt;
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
+use std::string::ToString;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TokenType {
@@ -30,6 +32,7 @@ pub enum TokenType {
     RightAngleEqual,       // =>
     LeftAngleBangDashDash, // <!--
     DashDashRightAngle,    // -->
+    LeftAngleSlash,        // </
     SlashRightAngle,       // />
     DoubleSlash,           // //
     SlashStar,             // /*
@@ -67,6 +70,7 @@ impl TokenType {
             | TokenType::DoubleEqual
             | TokenType::LeftAngleEqual
             | TokenType::RightAngleEqual
+            | TokenType::LeftAngleSlash
             | TokenType::SlashRightAngle
             | TokenType::DoubleSlash
             | TokenType::SlashStar
@@ -84,6 +88,12 @@ pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
     pub line: usize,
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.lexeme)
+    }
 }
 
 impl<'a> Token {
@@ -124,6 +134,19 @@ impl<'a> Token {
 
     pub fn is_token_type(&self, token_type: TokenType) -> bool {
         self.token_type == token_type
+    }
+}
+
+pub trait TokenVecToString {
+    fn to_string(&self) -> String;
+}
+
+impl TokenVecToString for Vec<Token> {
+    fn to_string(&self) -> String {
+        self.iter()
+            .map(|token| token.to_string())
+            .collect::<Vec<String>>()
+            .join(" ")
     }
 }
 
