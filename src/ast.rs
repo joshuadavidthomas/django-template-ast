@@ -24,12 +24,12 @@ pub enum Node {
         attributes: Vec<(String, AttributeValue)>,
         content: String,
     },
-    DjangoVariable(String),
     DjangoBlock {
         name: String,
         arguments: Vec<String>,
         children: Vec<Node>,
     },
+    DjangoVariable(String),
     DjangoComment(String),
     Text(String),
 }
@@ -105,17 +105,13 @@ impl Node {
         })
     }
 
-    pub fn new_django_variable(content: String) -> Result<Self, NodeError> {
-        Ok(Node::DjangoVariable(content))
-    }
-
     pub fn new_django_block(
         name: String,
         arguments: Option<Vec<String>>,
         children: Option<Vec<Node>>,
     ) -> Result<Self, NodeError> {
-        if name.is_empty() {
-            return Err(NodeError::NoBlockName);
+        if name.is_empty() && arguments.is_none() {
+            return Err(NodeError::EmptyDjangoBlock);
         };
 
         let arguments = arguments.unwrap_or_default();
@@ -126,6 +122,10 @@ impl Node {
             arguments,
             children,
         })
+    }
+
+    pub fn new_django_variable(content: String) -> Result<Self, NodeError> {
+        Ok(Node::DjangoVariable(content))
     }
 
     pub fn new_django_comment(content: String) -> Result<Self, NodeError> {
@@ -405,11 +405,11 @@ mod tests {
     }
 
     #[test]
-    fn test_new_django_block_empty_name() {
+    fn test_new_django_block_empty() {
         let result = Node::new_django_block("".to_string(), None, None);
 
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), NodeError::NoBlockName));
+        assert!(matches!(result.unwrap_err(), NodeError::EmptyDjangoBlock));
     }
 
     #[test]
