@@ -26,22 +26,24 @@ pub enum LexerError {
 
 #[derive(Error, Debug)]
 pub enum NodeError {
-    #[error("Tag name cannot be empty")]
+    #[error("tag name cannot be empty")]
     NoTagName,
-    #[error("Block name cannot be empty")]
-    NoBlockName,
+    #[error("django block cannot be empty")]
+    EmptyDjangoBlock,
 }
 
 #[derive(Error, Debug)]
 pub enum ParserError {
-    #[error("Token stream is empty")]
+    #[error("token stream is empty")]
     EmptyTokenStream,
-    #[error("At beginning of token stream")]
+    #[error("at beginning of token stream")]
     AtBeginningOfStream,
-    #[error("At end of token stream")]
+    #[error("at end of token stream")]
     AtEndOfStream,
-    #[error("Invalid token access")]
+    #[error("invalid token access")]
     InvalidTokenAccess,
+    #[error("unexpected token '{0:?}', expected type '{1:?}'")]
+    ExpectedTokenType(Token, TokenType),
     #[error("unexpected token '{0:?}'")]
     UnexpectedToken(Token),
     #[error(transparent)]
