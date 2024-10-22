@@ -126,6 +126,7 @@ impl Lexer {
     fn left_angle(&self) -> Result<TokenType, LexerError> {
         let token_type = match (self.peek_next()?, self.peek_at(2)?, self.peek_at(3)?) {
             ('=', _, _) => TokenType::LeftAngleEqual,
+            ('/', _, _) => TokenType::LeftAngleSlash,
             ('!', '-', '-') => TokenType::LeftAngleBangDashDash,
             (c, _, _) if c.is_whitespace() || c.is_alphabetic() || c == '\0' => {
                 TokenType::LeftAngle
@@ -191,11 +192,17 @@ impl Lexer {
                     .take_while(|&c| c.is_whitespace() && c != '\0')
                     .map(|c| c.len_utf8())
                     .sum(),
-                TokenType::Text => remaining_source
-                    .chars()
-                    .take_while(|&c| !c.is_whitespace() && c != '\0')
-                    .map(|c| c.len_utf8())
-                    .sum(),
+                TokenType::Text => {
+                    const TOKEN_BOUNDARIES: &[char] = &['>', '=', '\'', '"'];
+
+                    remaining_source
+                        .chars()
+                        .take_while(|&c| {
+                            !c.is_whitespace() && c != '\0' && !TOKEN_BOUNDARIES.contains(&c)
+                        })
+                        .map(|c| c.len_utf8())
+                        .sum()
+                }
                 _ => return Err(LexerError::UnexpectedTokenType(token_type)),
             },
         };
@@ -252,6 +259,125 @@ impl Lexer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_tokenize() {
+        let test_cases = vec![
+            (
+                "<html>",
+                vec![
+                    TokenType::LeftAngle,
+                    TokenType::Text,
+                    TokenType::RightAngle,
+                    TokenType::Eof,
+                ],
+            ),
+            (
+                "</body>",
+                vec![
+                    TokenType::LeftAngleSlash,
+                    TokenType::Text,
+                    TokenType::RightAngle,
+                    TokenType::Eof,
+                ],
+            ),
+            (
+                "<img src='https://example.com/image.jpg' />",
+                vec![
+                    TokenType::LeftAngle,
+                    TokenType::Text,
+                    TokenType::Text,
+                    TokenType::Equal,
+                    TokenType::SingleQuote,
+                    TokenType::Text,
+                    TokenType::SingleQuote,
+                    TokenType::SlashRightAngle,
+                    TokenType::Eof,
+                ],
+            ),
+            (
+                "{{ variable }}",
+                vec![
+                    TokenType::DoubleLeftBrace,
+                    TokenType::Text,
+                    TokenType::DoubleRightBrace,
+                    TokenType::Eof,
+                ],
+            ),
+            (
+                "{% if condition %}",
+                vec![
+                    TokenType::LeftBracePercent,
+                    TokenType::Text,
+                    TokenType::Text,
+                    TokenType::PercentRightBrace,
+                    TokenType::Eof,
+                ],
+            ),
+            (
+                "{# A comment #}",
+                vec![
+                    TokenType::LeftBraceHash,
+                    TokenType::Text,
+                    TokenType::Text,
+                    TokenType::HashRightBrace,
+                    TokenType::Eof,
+                ],
+            ),
+            (
+                "{{ value|default:'default' }}",
+                vec![
+                    TokenType::DoubleLeftBrace,
+                    TokenType::Text,
+                    TokenType::SingleQuote,
+                    TokenType::Text,
+                    TokenType::SingleQuote,
+                    TokenType::DoubleRightBrace,
+                    TokenType::Eof,
+                ],
+            ),
+            (
+                r#"'{% url "api:index" %}'"#,
+                vec![
+                    TokenType::SingleQuote,
+                    TokenType::LeftBracePercent,
+                    TokenType::Text,
+                    TokenType::DoubleQuote,
+                    TokenType::Text,
+                    TokenType::DoubleQuote,
+                    TokenType::PercentRightBrace,
+                    TokenType::SingleQuote,
+                    TokenType::Eof,
+                ],
+            ),
+        ];
+
+        for (input, expected_token_types) in test_cases {
+            println!("Testing input: {:?}", input);
+
+            let mut lexer = Lexer::new(input);
+            let tokens = lexer.tokenize().unwrap();
+
+            println!("tokens: {:?}", tokens);
+
+            assert_eq!(
+                tokens.len(),
+                expected_token_types.len(),
+                "Number of tokens doesn't match for input: {}",
+                input
+            );
+
+            for (token, expected_type) in tokens.iter().zip(expected_token_types.iter()) {
+                assert_eq!(
+                    token.token_type, *expected_type,
+                    "Token type mismatch for input: {}",
+                    input
+                );
+            }
+
+            println!("---");
+        }
+    }
 
     #[test]
     fn test_token_from_source() {
