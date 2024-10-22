@@ -1,15 +1,22 @@
+mod ast;
 mod error;
 mod lexer;
-mod scanner;
+mod parser;
 mod token;
 
 use lexer::Lexer;
+use parser::Parser;
 use std::error::Error;
 
 pub fn compile(template: &str) -> Result<String, Box<dyn Error>> {
+    println!("Starting compilation");
     let mut lexer = Lexer::new(template);
     let tokens = lexer.tokenize()?;
-    println!("{:?}", tokens);
+    println!("Tokenization complete");
+    println!("Tokens: {:?}", tokens);
+    let ast = Parser::new(tokens.clone()).parse()?;
+    println!("Parsing complete");
+    println!("AST: {:?}", ast);
     todo!("Implement compilation process")
 }
 

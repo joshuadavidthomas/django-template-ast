@@ -1,5 +1,8 @@
-use crate::token::TokenType;
+use crate::token::{Token, TokenType};
 use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum AstError {}
 
 #[derive(Error, Debug)]
 pub enum LexerError {
@@ -18,15 +21,35 @@ pub enum LexerError {
     #[error("unexpected token type '{0:?}'")]
     UnexpectedTokenType(TokenType),
     #[error(transparent)]
-    ScannerError(#[from] ScannerError),
-    #[error(transparent)]
     TokenError(#[from] TokenError),
 }
 
 #[derive(Error, Debug)]
-pub enum ScannerError {
-    #[error("attempted to get last line before reaching end of input")]
-    NotAtEnd,
+pub enum NodeError {
+    #[error("tag name cannot be empty")]
+    NoTagName,
+    #[error("django block cannot be empty")]
+    EmptyDjangoBlock,
+}
+
+#[derive(Error, Debug)]
+pub enum ParserError {
+    #[error("token stream is empty")]
+    EmptyTokenStream,
+    #[error("at beginning of token stream")]
+    AtBeginningOfStream,
+    #[error("at end of token stream")]
+    AtEndOfStream,
+    #[error("invalid token access")]
+    InvalidTokenAccess,
+    #[error("unexpected token '{0:?}', expected type '{1:?}'")]
+    ExpectedTokenType(Token, TokenType),
+    #[error("unexpected token '{0:?}'")]
+    UnexpectedToken(Token),
+    #[error(transparent)]
+    AstError(#[from] AstError),
+    #[error(transparent)]
+    NodeError(#[from] NodeError),
 }
 
 #[derive(Error, Debug)]
