@@ -5,8 +5,8 @@ use thiserror::Error;
 pub enum LexerError {
     #[error("empty token at line {line:?}")]
     EmptyToken { line: usize },
-    #[error("unexpected character '{character}' at line {line}")]
-    UnexpectedCharacter { character: char, line: usize },
+    #[error("unexpected character '{0}' at line {1}")]
+    UnexpectedCharacter(char, usize),
     #[error("source is empty")]
     EmptySource,
     #[error("at beginning of source")]
@@ -17,6 +17,8 @@ pub enum LexerError {
     InvalidCharacterAccess,
     #[error("unexpected token type '{0:?}'")]
     UnexpectedTokenType(TokenType),
+    #[error("unexpected end of input")]
+    UnexpectedEndOfInput,
     #[error(transparent)]
     ScannerError(#[from] ScannerError),
     #[error(transparent)]
