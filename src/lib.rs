@@ -1,6 +1,5 @@
 mod error;
 mod lexer;
-mod scanner;
 mod token;
 
 use lexer::Lexer;
